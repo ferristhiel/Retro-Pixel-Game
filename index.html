@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Tiny Arcade – Pixel Board • Randomizer • Clicker</title>
+<meta name="description" content="A tiny retro web toy: pixel board, random generator, and clicker game. All client-side, no backend." />
+
+<style>
+  /* ========== Retro Theme ========== */
+  :root{
+    --bg: #111216;
+    --panel: #191b22;
+    --panel-2: #21232c;
+    --ink: #e8f1ff;
+    --muted: #9fb1d4;
+    --accent: #6cf085;     /* neon green */
+    --accent-2:#ff6ad5;    /* hot pink */
+    --accent-3:#ffd166;    /* sunflower */
+    --danger: #ff4d4d;
+    --shadow: #00000080;
+    --pixel: 8px;          /* adjust for chunkiness */
+  }
+
+  html,body{
+    height:100%;
+    margin:0;
+    background:
+      radial-gradient(1200px 800px at 80% -10%, #242838 0%, transparent 60%),
+      radial-gradient(1000px 700px at -10% 100%, #1c2030 0%, transparent 60%),
+      var(--bg);
+    color:var(--ink);
+    font-family: ui-monospace, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    image-rendering: pixelated;
+  }
+
+  /* Pixel-style headings */
+  h1,h2,h3{
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    text-shadow: 0 2px 0 #000, 0 0 12px #6cf08540;
+    margin: 0 0 12px 0;
+  }
+  h1{ font-size: clamp(20px, 3vw, 28px); }
+  h2{ font-size: 16px; color: var(--muted); }
+
+  /* Layout */
+  .wrap{
+    max-width: 1100px;
+    margin: 24px auto 64px;
+    padding: 0 16px;
+  }
+  .grid{
+    display:grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 16px;
+  }
+  @media (max-width: 960px){
+    .grid{ grid-template-columns: 1fr; }
+  }
+
+  /* Cards with chunky borders */
+  .card{
+    background: linear-gradient(180deg, var(--panel), var(--panel-2));
+    border: solid 4px #000;
+    box-shadow:
+      0 calc(var(--pixel)/2) 0 0 #000,
+      0 8px 24px var(--shadow),
+      inset 0 0 0 2px #2a2e3b;
+    border-radius: 12px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .ribbon{
+    position:absolute; inset:auto -20px 12px auto;
+    background: repeating-linear-gradient(45deg, var(--accent), var(--accent) 10px, var(--accent-2) 10px, var(--accent-2) 20px);
+    color:#000; font-weight:700; padding:4px 16px; transform: rotate(-8deg);
+    border:3px solid #000; box-shadow:0 2px 0 #000;
+  }
+
+  /* Buttons */
+  .btn{
+    display:inline-block;
+    background: var(--accent);
+    color:#001a07;
+    border:3px solid #001a07;
+    box-shadow:0 3px 0 #001a07, 0 6px 16px #0008;
+    padding:10px 14px;
+    text-decoration:none;
+    font-weight:800;
+    cursor:pointer;
+    transition: transform .06s ease;
+    border-radius:8px;
+  }
+  .btn:hover{ transform: translateY(-1px); }
+  .btn:active{ transform: translateY(1px); box-shadow:0 1px 0 #001a07; }
+  .btn.secondary{ background: var(--accent-3); color:#231400; border-color:#231400; }
+  .btn.danger{ background: var(--danger); color:#1a0000; border-color:#1a0000; }
+
+  /* Inputs */
+  .ctrls{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin: 10px 0 14px; }
+  .select, .input{
+    background:#0f1118; color:var(--ink);
+    border:2px solid #000;
+    box-shadow: inset 0 0 0 2px #2a2e3b;
+    padding:8px 10px; border-radius:8px;
+    font-weight:700;
+  }
+  .note{ color:var(--muted); font-size:13px; line-height:1.4; }
+
+  /* ========== Pixel Board ========== */
+  .board{
+    --size: 16;           /* number of cells per side */
+    --cell: 22px;         /* pixel cell size */
+    display:grid;
+    grid-template-columns: repeat(var(--size), var(--cell));
+    grid-template-rows: repeat(var(--size), var(--cell));
+    gap: 2px;
+    user-select:none;
+    touch-action: manipulation;
+    background:#0b0e15;
+    border:3px solid #000;
+    padding:6px;
+    border-radius:10px;
+    width: max-content;
+  }
+  .cell{
+    width: var(--cell);
+    height: var(--cell);
+    background:#1a1f2b;
+    border:2px solid #000;
+    box-shadow: inset 0 0 0 2px #2a2e3b;
+    transition: transform .05s ease, box-shadow .15s ease, background .2s ease;
+  }
+  .cell:hover{ transform: translateY(-1px); box-shadow: inset 0 0 0 2px #394057; }
+  .me{ outline: 2px solid var(--accent); box-shadow: 0 0 10px #6cf08580 inset, 0 0 10px #6cf08580; }
+
+  .legend { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:10px; }
+  .chip { display:inline-flex; align-items:center; gap:8px; background:#0f1118; padding:6px 10px; border-radius:8px; border:2px solid #000; box-shadow: inset 0 0 0 2px #2a2e3b; font-size:13px; }
+  .swatch{ width:16px; height:16px; border:2px solid #000; box-shadow: inset 0 0 0 2px #2a2e3b; border-radius:4px; }
+
+  /* ========== Randomizer ========== */
+  .output{
+    min-height: 64px;
+    background:#0f1118;
+    border:2px solid #000;
+    box-shadow: inset 0 0 0 2px #2a2e3b;
+    border-radius:10px;
+    padding:12px;
+    font-size: 15px;
+    line-height:1.5;
+  }
+  .sparkle{
+    animation: sparkle .8s ease-out;
+  }
+  @keyframes sparkle{
+    0%{ text-shadow:0 0 0 transparent; transform: scale(0.98);}
+    60%{ text-shadow:0 0 24px #6cf08580; transform: scale(1.01);}
+    100%{ text-shadow:0 0 0 transparent; transform: scale(1);}
+  }
+
+  /* ========== Clicker ========== */
+  .score{
+    font-size: 28px; font-weight:900; letter-spacing:0.04em;
+    text-shadow:0 3px 0 #000, 0 0 12px #ffd16655;
+    margin:6px 0 12px;
+  }
+  .pop{
+    position:absolute; pointer-events:none; font-weight:900;
+    animation: rise .7s ease-out forwards;
+    text-shadow: 0 2px 0 #000;
+  }
+  @keyframes rise{
+    0%{ transform: translateY(0) scale(1); opacity:1;}
+    100%{ transform: translateY(-24px) scale(1.2); opacity:0;}
+  }
+
+  /* Footer */
+  footer{ margin:24px 0 0; text-align:center; color:var(--muted); font-size:12px; }
+  a{ color: var(--accent); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header style="margin-bottom:18px">
+      <h1>🕹️ Tiny Arcade</h1>
+      <h2>Pixel Board • Randomizer • Clicker — all local, no backend.</h2>
+    </header>
+
+    <div class="grid">
+      <!-- ========== Pixel Board Card ========== -->
+      <section class="card" style="grid-column: span 6">
+        <div class="ribbon">Retro</div>
+        <h3>🎨 Pixel Board</h3>
+        <p class="note">Place <b>one</b> pixel on this 16×16 board. Your choice (position + color) is saved locally and can be reset anytime.</p>
+        <div class="ctrls">
+          <label class="chip" title="Pick a color">
+            <span>Color</span>
+            <input id="pb-color" class="input" type="color" value="#6cf085" />
+          </label>
+          <button id="pb-reset" class="btn danger" title="Remove my pixel">Reset my pixel</button>
+        </div>
+        <div id="board" class="board" aria-label="Pixel board 16 by 16" role="grid"></div>
+        <div class="legend">
+          <span class="chip"><span class="swatch" style="background:#1a1f2b"></span>Empty</span>
+          <span class="chip"><span class="swatch" style="background: var(--accent)"></span>Yours</span>
+          <span class="note">This is per-user only (no server). Great for prototyping!</span>
+        </div>
+      </section>
+
+      <!-- ========== Randomizer Card ========== -->
+      <section class="card" style="grid-column: span 6">
+        <h3>🎲 Random Generator</h3>
+        <p class="note">Pick a type and smash “Generate”. Your last choice persists.</p>
+        <div class="ctrls">
+          <select id="rand-type" class="select" aria-label="Random content type">
+            <option value="joke">Jokes</option>
+            <option value="excuse">Excuses</option>
+            <option value="quote">Quotes</option>
+            <option value="emoji">Emojis</option>
+          </select>
+          <button id="rand-btn" class="btn">Generate</button>
+          <button id="rand-copy" class="btn secondary" title="Copy to clipboard">Copy</button>
+        </div>
+        <div id="rand-out" class="output" role="status" aria-live="polite"></div>
+      </section>
+
+      <!-- ========== Clicker Game Card ========== -->
+      <section class="card" style="grid-column: span 12; position: relative;">
+        <h3>🔘 Clicker Game</h3>
+        <p class="note">Earn points by pressing the button. Your score and high score are saved. Simple, silly, satisfying.</p>
+        <div class="ctrls">
+          <div class="score" id="score">Score: 0 • High: 0</div>
+          <button id="clicker" class="btn" style="font-size:18px; padding:14px 18px">+1 Click!</button>
+          <button id="clicker-reset" class="btn danger">Reset Score</button>
+        </div>
+        <div id="pop-layer" aria-hidden="true"></div>
+      </section>
+    </div>
+
+    <footer>
+      Built with ♥ and JavaScript. No cookies, no tracking — just <em>localStorage</em>. Fork & tweak freely.
+    </footer>
+  </div>
+
+<script>
+/* ==========================================================
+   Utilities & Storage
+========================================================== */
+const store = {
+  get(key, fallback=null){
+    try{ const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
+    catch(e){ console.warn('storage get failed', e); return fallback; }
+  },
+  set(key, value){
+    try{ localStorage.setItem(key, JSON.stringify(value)); }
+    catch(e){ console.warn('storage set failed', e); }
+  },
+  del(key){ try{ localStorage.removeItem(key); }catch(e){} }
+};
+
+const $ = sel => document.querySelector(sel);
+
+/* ==========================================================
+   Pixel Board (single-pixel-per-user)
+   Keys: PB_CHOICE = { x, y, color }
+========================================================== */
+(function(){
+  const SIZE = 16;
+  const board = $('#board');
+  const colorInput = $('#pb-color');
+  const resetBtn = $('#pb-reset');
+  const KEY = 'PB_CHOICE_V1';
+
+  // Build grid
+  board.style.setProperty('--size', SIZE);
+  const frag = document.createDocumentFragment();
+
+  // Load previous choice
+  let choice = store.get(KEY, null);
+  if (choice && typeof choice.color === 'string') {
+    colorInput.value = choice.color;
+  }
+
+  for(let y=0; y<SIZE; y++){
+    for(let x=0; x<SIZE; x++){
+      const cell = document.createElement('button');
+      cell.className = 'cell';
+      cell.setAttribute('role','gridcell');
+      cell.setAttribute('aria-label', `Cell ${x+1}, ${y+1}`);
+      cell.dataset.x = x;
+      cell.dataset.y = y;
+      cell.title = `(${x+1}, ${y+1})`;
+
+      // If this cell is the stored one, paint it
+      if(choice && choice.x === x && choice.y === y){
+        cell.style.background = choice.color;
+        cell.classList.add('me');
+      }
+
+      cell.addEventListener('click', () => {
+        const myColor = colorInput.value || '#6cf085';
+        const prev = store.get(KEY, null);
+
+        // If already placed somewhere else, disallow without reset
+        if (prev && !(prev.x === x && prev.y === y)) {
+          wiggle(board);
+          toast("You already placed your pixel. Hit “Reset my pixel” to change it.");
+          return;
+        }
+
+        // Place/update your pixel
+        choice = { x, y, color: myColor };
+        store.set(KEY, choice);
+
+        // Repaint: clear previous highlight then set this one
+        board.querySelectorAll('.cell.me').forEach(c => {
+          c.classList.remove('me');
+          c.style.background = '#1a1f2b';
+        });
+        cell.style.background = myColor;
+        cell.classList.add('me');
+        pulse(cell);
+      });
+
+      frag.appendChild(cell);
+    }
+  }
+  board.appendChild(frag);
+
+  // Reset
+  resetBtn.addEventListener('click', () => {
+    const prev = store.get(KEY, null);
+    if (!prev) { toast("No pixel to reset."); return; }
+    store.del(KEY);
+    choice = null;
+    board.querySelectorAll('.cell.me').forEach(c => {
+      c.classList.remove('me');
+      c.style.background = '#1a1f2b';
+    });
+    toast("Pixel reset. Pick a new spot!");
+  });
+
+  // Small visual flourish helpers
+  function wiggle(el){
+    el.animate([{transform:'translateX(0)'},{transform:'translateX(-3px)'},{transform:'translateX(3px)'},{transform:'translateX(0)'}], {duration:140, iterations:1});
+  }
+  function pulse(el){
+    el.animate([{filter:'brightness(1)'},{filter:'brightness(1.6)'},{filter:'brightness(1)'}],{duration:250, iterations:1});
+  }
+})();
+
+/* ==========================================================
+   Random Generator
+   Keys: RAND_TYPE, RAND_LAST
+========================================================== */
+(function(){
+  const select = $('#rand-type');
+  const btn = $('#rand-btn');
+  const copyBtn = $('#rand-copy');
+  const out = $('#rand-out');
+
+  const JOKES = [
+    "I told my computer I needed a break — it said 'No problem, I’ll go to sleep.'",
+    "Why do Java developers wear glasses? Because they don't C#.",
+    "There are 10 kinds of people: those who understand binary and those who don't."
+  ];
+  const EXCUSES = [
+    "My code compiled on my machine.",
+    "The Wi-Fi used tabs, I use spaces.",
+    "A cosmic ray flipped a bit, honest."
+  ];
+  const QUOTES = [
+    "“Simplicity is the soul of efficiency.” — Austin Freeman",
+    "“Programs must be written for people to read.” — Harold Abelson",
+    "“First, solve the problem. Then, write the code.” — John Johnson"
+  ];
+  const EMOJIS = ["🤖","🕹️","✨","🧠","🧩","🎯","🌀","💾","⚡","🧪","🎲","🎉"];
+
+  // restore last type
+  const lastType = store.get('RAND_TYPE', 'joke');
+  select.value = lastType;
+
+  function pick(arr){
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
+  function gen(){
+    const type = select.value;
+    store.set('RAND_TYPE', type);
+    let text = "";
+    switch(type){
+      case 'joke': text = pick(JOKES); break;
+      case 'excuse': text = pick(EXCUSES); break;
+      case 'quote': text = pick(QUOTES); break;
+      case 'emoji': text = EMOJIS.slice(0).sort(()=>Math.random()-0.5).slice(0,Math.floor(3+Math.random()*5)).join(' '); break;
+    }
+    out.textContent = text;
+    out.classList.remove('sparkle'); void out.offsetWidth; out.classList.add('sparkle'); // retrigger animation
+    store.set('RAND_LAST', text);
+  }
+
+  btn.addEventListener('click', gen);
+  copyBtn.addEventListener('click', async () => {
+    const text = out.textContent.trim();
+    if (!text) { toast("Nothing to copy yet."); return; }
+    try{
+      await navigator.clipboard.writeText(text);
+      toast("Copied to clipboard!");
+    }catch{
+      toast("Copy failed. Select the text and copy manually.");
+    }
+  });
+
+  // Seed output with last result for nice persistence
+  const seed = store.get('RAND_LAST', "");
+  if (seed) out.textContent = seed; else gen();
+})();
+
+/* ==========================================================
+   Clicker Game
+   Keys: CLICK_SCORE, CLICK_HIGH
+========================================================== */
+(function(){
+  const btn = $('#clicker');
+  const resetBtn = $('#clicker-reset');
+  const scoreEl = $('#score');
+  const popLayer = $('#pop-layer');
+  const K_SCORE = 'CLICK_SCORE_V1';
+  const K_HIGH  = 'CLICK_HIGH_V1';
+
+  let score = Number(store.get(K_SCORE, 0)) || 0;
+  let high  = Number(store.get(K_HIGH, 0))  || 0;
+  render();
+
+  btn.addEventListener('click', (e) => {
+    score++;
+    if (score > high) { high = score; store.set(K_HIGH, high); }
+    store.set(K_SCORE, score);
+    render();
+    pop(e.clientX, e.clientY, `+1`);
+  });
+
+  resetBtn.addEventListener('click', () => {
+    score = 0; store.set(K_SCORE, score);
+    render();
+    toast("Score reset.");
+  });
+
+  function render(){
+    scoreEl.textContent = `Score: ${score} • High: ${high}`;
+  }
+
+  function pop(x, y, text){
+    const el = document.createElement('div');
+    el.className = 'pop';
+    el.textContent = text;
+    // position relative to card
+    const cardRect = scoreEl.closest('.card').getBoundingClientRect();
+    const px = (x || (cardRect.left + cardRect.width/2)) - cardRect.left;
+    const py = (y || (cardRect.top + cardRect.height/2)) - cardRect.top;
+    el.style.left = (px - 8) + 'px';
+    el.style.top  = (py - 8) + 'px';
+    el.style.color = randFrom(['#6cf085','#ff6ad5','#ffd166','#8ecae6','#f94144']);
+    popLayer.appendChild(el);
+    setTimeout(()=> el.remove(), 750);
+  }
+  function randFrom(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+})();
+
+/* ==========================================================
+   Tiny Toast (no dependencies)
+========================================================== */
+let toastTimer = null;
+function toast(msg){
+  let bar = document.getElementById('toast-bar');
+  if (!bar){
+    bar = document.createElement('div');
+    bar.id = 'toast-bar';
+    Object.assign(bar.style, {
+      position:'fixed', left:'50%', bottom:'22px', transform:'translateX(-50%)',
+      background:'linear-gradient(180deg, #111, #222)', color:'#e8f1ff',
+      border:'3px solid #000', padding:'10px 14px', borderRadius:'10px',
+      boxShadow:'0 3px 0 #000, 0 8px 16px #0008', zIndex:9999,
+      fontFamily:'ui-monospace, Menlo, Monaco, Consolas, "Courier New", monospace',
+      fontWeight:'800', letterSpacing:'0.02em'
+    });
+    document.body.appendChild(bar);
+  }
+  bar.textContent = msg;
+  bar.style.opacity = '1';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=> { bar.style.opacity='0'; }, 1400);
+}
+</script>
+</body>
+</html>
