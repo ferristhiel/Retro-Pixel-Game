@@ -3,50 +3,55 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Echo of the Ember – a tiny retro adventure</title>
+<title>Echo of the Ember – retro single-file adventure</title>
 <style>
   :root{
-    --fg:#e7e7e7;--bg:#111;--muted:#888;--accent:#00d8a7;--warn:#ff3b3b;--ok:#4caf50;
+    --fg:#e8f0ff;--bg:#0b0e14;--muted:#93a1b2;--accent:#00f6c7;--warn:#ff4d4d;--ok:#50c878;--panel:#0f1320;--edge:#1c2236;
   }
-  html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif}
+  html,body{height:100%;margin:0;background:radial-gradient(1200px 600px at 50% 0%, #121725 0%, #0b0e14 60%);color:var(--fg);font-family:Inter, ui-sans-serif, system-ui, Segoe UI, Roboto, Helvetica, Arial}
   *{box-sizing:border-box}
-  .flex{display:flex}
-  .col{flex-direction:column}
-  .center{align-items:center;justify-content:center}
-  .btn{background:#222;border:2px solid #333;color:var(--fg);padding:.6rem 1rem;margin:.3rem 0;font-size:18px;cursor:pointer;border-radius:8px;transition:transform .06s ease, background .2s}
-  .btn:hover{background:#2a2a2a;transform:translateY(-1px)}
+  .flex{display:flex}.col{flex-direction:column}.center{align-items:center;justify-content:center}
+  .btn{background:linear-gradient(#151b2b,#0f1424);border:2px solid var(--edge);color:var(--fg);padding:.6rem 1rem;margin:.3rem 0;font-size:18px;cursor:pointer;border-radius:12px;transition:transform .06s ease, box-shadow .2s, border-color .2s}
+  .btn:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(0,0,0,.35);border-color:#2b3554}
   .btn:active{transform:translateY(1px)}
   .btn.primary{border-color:var(--accent)}
   .btn.danger{border-color:var(--warn)}
   .btn.ok{border-color:var(--ok)}
+
   .menu{position:absolute;inset:0;display:none}
   .menu.active{display:flex}
-  .panel{background:#0a0a0a;border:2px solid #333;border-radius:14px;box-shadow:0 8px 40px rgba(0,0,0,.5);padding:20px;min-width:320px;max-width:720px}
+  .panel{background:linear-gradient(180deg,var(--panel),#0c1020 40%, #0b0e14);border:2px solid var(--edge);border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.03);padding:20px;min-width:340px;max-width:820px}
   h1,h2,h3{margin:.2rem 0}
-  h1.title{font-size:42px;letter-spacing:1px;text-shadow:0 2px 0 #000, 0 0 16px rgba(0,216,167,.35)}
-  p.mono{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #bdbdbd}
+  h1.title{font-size:48px;letter-spacing:.5px;line-height:1.1;text-shadow:0 2px 0 #000, 0 0 28px rgba(0,246,199,.35)}
+  p.mono{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--muted)}
   .row{display:flex;gap:12px;flex-wrap:wrap}
-  .note{color:#aaa;font-size:12px;margin-top:6px}
-  .grid{display:grid;grid-template-columns:repeat(2,minmax(180px,1fr));gap:12px}
-  .slot{border:2px dashed #333;border-radius:10px;padding:12px}
+  .note{color:#aab1c4;font-size:12px;margin-top:6px}
+  .grid{display:grid;grid-template-columns:repeat(2,minmax(200px,1fr));gap:12px}
+  .slot{border:2px dashed var(--edge);border-radius:14px;padding:12px;background:rgba(255,255,255,.02)}
   .slot h3{margin:0 0 6px 0}
-  input[type="text"], select{width:100%;background:#0f0f0f;border:2px solid #333;color:var(--fg);padding:.5rem;border-radius:8px;font-size:16px}
-  label{font-size:14px;color:#bbb}
-  .toast{position:fixed;left:50%;top:10%;transform:translateX(-50%);background:#111;border:2px solid #333;padding:.6rem 1rem;border-radius:10px;display:none}
+  input[type="text"], select{width:100%;background:#0b1022;border:2px solid var(--edge);color:var(--fg);padding:.55rem;border-radius:10px;font-size:16px}
+  label{font-size:14px;color:#b9c1d8}
+  .toast{position:fixed;left:50%;top:8%;transform:translateX(-50%);background:#0b1124;border:2px solid var(--edge);padding:.65rem 1rem;border-radius:12px;display:none;box-shadow:0 10px 24px rgba(0,0,0,.35)}
   .toast.show{display:block}
-  .hud{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;gap:8px;padding:6px 8px;font-family: ui-monospace, monospace}
-  .hud .pill{background:#121212;border:2px solid #333;padding:6px 10px;border-radius:10px}
-  .pauseOverlay{position:absolute;inset:0;background:rgba(0,0,0,.7);display:none}
+  .hud{position:absolute;left:0;right:0;top:0;display:flex;justify-content:center;gap:8px;padding:8px 8px;font-family: ui-monospace, monospace;pointer-events:none}
+  .hud .pill{background:rgba(10,14,28,.9);border:2px solid var(--edge);padding:6px 10px;border-radius:12px}
+  .pauseOverlay{position:absolute;inset:0;background:rgba(5,8,16,.78);backdrop-filter:blur(2px);display:none}
   .pauseOverlay.active{display:flex}
-  .cutscene{position:absolute;inset:auto 0 0 0;background:rgba(0,0,0,.88);padding:12px 14px;border-top:2px solid #333;font-family: ui-monospace, monospace}
+  .cutscene{position:absolute;inset:auto 0 0 0;background:rgba(5,8,16,.92);padding:14px 16px;border-top:2px solid var(--edge);font-family: ui-monospace, monospace}
   .cutscene .name{color:var(--accent)}
-  canvas{image-rendering: pixelated; image-rendering: crisp-edges; width: 960px; height: 540px; border:2px solid #222; border-radius:12px; background:#000}
-  .viewport{position:relative;display:flex;gap:16px;align-items:flex-start;justify-content:center;margin:16px}
-  @media (max-width: 1020px){ canvas{ width: 90vw; height: calc(90vw * 9 / 16);} }
+  .egg{position:fixed;inset:auto 0 12% 0;display:none;justify-content:center}
+  .egg .bubble{background:#0b1124;border:2px solid var(--accent);padding:10px 14px;border-radius:12px;box-shadow:0 10px 24px rgba(0,0,0,.35)}
+
+  canvas{image-rendering: pixelated; image-rendering: crisp-edges; width: 960px; height: 540px; border:2px solid var(--edge); border-radius:14px; background:#000; box-shadow:0 30px 80px rgba(0,0,0,.6)}
+  .viewport{position:relative;display:flex;gap:16px;align-items:flex-start;justify-content:center;margin:18px}
+  @media (max-width: 1020px){ canvas{ width: 92vw; height: calc(92vw * 9 / 16);} }
+
+  /* subtle CRT scanlines */
+  .crt:before{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(to bottom, rgba(255,255,255,.03), rgba(255,255,255,.03) 1px, transparent 2px, transparent 4px);border-radius:14px}
 </style>
 </head>
 <body>
-<div class="viewport flex col center">
+<div class="viewport flex col center crt">
   <canvas id="game" width="320" height="180" aria-label="Retro canvas"></canvas>
   <div class="hud" id="hud" style="display:none">
     <div class="pill" id="hp">HP: --</div>
@@ -59,21 +64,21 @@
   <section id="menu" class="menu active flex center">
     <div class="panel">
       <h1 class="title">Echo of the Ember</h1>
-      <p class="mono">A one-file retro adventure. Move with <b>WASD / Arrow Keys</b>. Press <b>T</b> for pause & save.</p>
+      <p class="mono">Move with <b>WASD</b> or <b>Arrow Keys</b> · <b>SPACE</b> attack · <b>E</b> interact · <b>T</b> pause/save.</p>
       <div class="row">
         <button class="btn primary" id="btnNew">New Game</button>
         <button class="btn" id="btnLoad">Load Game</button>
         <button class="btn" id="btnSettings">Settings</button>
         <button class="btn danger" id="btnExit">Exit</button>
       </div>
-      <p class="note">Tip: There are 3 save slots. Name a slot <b>Pia</b> for a surprise ✨</p>
+      <p class="note">There are <b>3 save slots</b>. Name a slot <b>Pia</b> for a little hello ✨</p>
     </div>
   </section>
 
   <!-- LOAD MENU -->
   <section id="load" class="menu flex center">
     <div class="panel">
-      <h2>Load Game</h2>
+      <h2>Load / Create Game</h2>
       <div id="slots" class="grid"></div>
       <div class="row" style="margin-top:8px">
         <button class="btn" id="backFromLoad">Back</button>
@@ -95,12 +100,12 @@
           </select>
         </div>
         <div style="flex:1">
-          <label>Login / Sign in</label>
+          <label>Login / Sign in (local)</label>
           <div class="row">
             <input id="username" type="text" placeholder="Nickname" />
-            <button id="btnLogin" class="btn ok">Save</button>
+            <button id="btnLogin" class="btn ok" title="Save locally">Save</button>
           </div>
-          <p class="note">This is a local nickname only (no servers involved).</p>
+          <p class="note">This nickname only lives in your browser.</p>
         </div>
       </div>
       <div class="row" style="margin-top:8px">
@@ -124,20 +129,15 @@
 
   <div id="cutscene" class="cutscene" style="display:none"></div>
   <div id="toast" class="toast"></div>
+  <div id="egg" class="egg"><div class="bubble">Hi Pia, this game was designed for you ♥</div></div>
 </div>
 
 <script>
 /**
- * Echo of the Ember – tiny Zelda-like in one HTML
- * Features:
- * - Pixel canvas, WASD/Arrows
- * - Start menu with New/Load/Settings/Exit
- * - 3 save slots w/ names, Easter egg when naming a slot "Pia"
- * - LocalStorage persistence; Pause menu on T with Save/Resume/Main
- * - Difficulty: easy / ok / hard (affects damage, enemy HP)
- * - Story intro cutscene (a hero lost in a volcano, their ash becomes a guiding ember)
- * - Overworld + cave + volcano boss map, items (Key, Sword, Potion)
- * - Boss fight and an ending
+ * Echo of the Ember – improved one-file Zelda-like
+ * – Polished GUI, CRT look, clearer menus
+ * – Fixed interactions & collisions, smoother movement
+ * – 3 save slots with proper restore; "Pia" easter egg shows for 3s
  */
 (function(){
   const canvas = document.getElementById('game');
@@ -147,9 +147,9 @@
   };
   const UI = {
     menu: document.getElementById('menu'), load: document.getElementById('load'), settings: document.getElementById('settings'), pause: document.getElementById('pause'),
-    cutscene: document.getElementById('cutscene'), toast: document.getElementById('toast')
+    cutscene: document.getElementById('cutscene'), toast: document.getElementById('toast'), egg: document.getElementById('egg')
   };
-  const buttons = {
+  const BTN = {
     new: document.getElementById('btnNew'), load: document.getElementById('btnLoad'), settings: document.getElementById('btnSettings'), exit: document.getElementById('btnExit'),
     backFromLoad: document.getElementById('backFromLoad'), backFromSettings: document.getElementById('backFromSettings'),
     login: document.getElementById('btnLogin'), resume: document.getElementById('btnResume'), save: document.getElementById('btnSave'), mainMenu: document.getElementById('btnMainMenu')
@@ -157,44 +157,37 @@
   const ddDifficulty = document.getElementById('difficulty');
   const inputNick = document.getElementById('username');
 
-  const TILE = 16; // pixels per tile (virtual)
+  const TILE = 16; // virtual pixels per tile
   const W = canvas.width, H = canvas.height;
 
-  // --- helpers ---
+  // helpers
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-  const rnd=(n)=>Math.floor(Math.random()*n);
+  const lerp=(a,b,t)=>a+(b-a)*t;
   const now=()=>performance.now();
   const show=(el, on)=>{ el.style.display = on? (el.classList.contains('menu')? 'flex':'block') : 'none'; };
-  const toast=(msg,ms=1600)=>{ UI.toast.textContent=msg; UI.toast.classList.add('show'); setTimeout(()=>UI.toast.classList.remove('show'),ms); };
+  const toast=(msg,ms=1800)=>{ UI.toast.textContent=msg; UI.toast.classList.add('show'); setTimeout(()=>UI.toast.classList.remove('show'),ms); };
 
-  // --- persistence ---
-  const STORE_KEY = 'echo-ember-saves-v1';
+  // persistence
+  const STORE_KEY = 'echo-ember-saves-v2';
   const defaultSaves = () => ({ slots:[null,null,null], settings:{difficulty:'ok', nick:''} });
   function loadAll(){ try{ return JSON.parse(localStorage.getItem(STORE_KEY))||defaultSaves(); }catch(e){ return defaultSaves(); } }
   function saveAll(data){ localStorage.setItem(STORE_KEY, JSON.stringify(data)); }
   let all = loadAll();
-  // apply saved settings
   ddDifficulty.value = all.settings?.difficulty || 'ok';
   inputNick.value = all.settings?.nick || '';
 
-  // --- input ---
-  const keys={};
-  window.addEventListener('keydown',e=>{ keys[e.key.toLowerCase()]=true; if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) keys[e.key]=true; if(e.key==='t' || e.key==='T') togglePause(); });
-  window.addEventListener('keyup',e=>{ keys[e.key.toLowerCase()]=false; if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) keys[e.key]=false; });
+  // input
+  const keys=new Map();
+  const setKey=(e,down)=>{ const k=e.key; keys.set(k.toLowerCase(),down); if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(k)) keys.set(k,down); if((k==='t'||k==='T') && inGame){ togglePause(); e.preventDefault(); } };
+  window.addEventListener('keydown',e=>setKey(e,true));
+  window.addEventListener('keyup',e=>setKey(e,false));
 
-  // --- world data ---
-  /** Tile legend
-   * 0 floor/grass, 1 wall/rock, 2 water/lava (blocked), 3 door, 4 cave entrance, 5 chest
-   * 6 sign, 7 stairs down/up, 8 boss gate, 9 volcano lava (hurts)
-   */
-  const COLORS = {
-    0:'#1c8c2d', 1:'#444444', 2:'#2a4a8a', 3:'#c2a30a', 4:'#7b4b17', 5:'#9c6', 6:'#ddd', 7:'#6666aa', 8:'#8b0000', 9:'#b33'
-  };
+  // world data
+  const COLORS = {0:'#1c8c2d',1:'#3e4356',2:'#254070',3:'#d3b012',4:'#865528',5:'#a7cc77',6:'#d7d7d7',7:'#6b76c8',8:'#9b0e0e',9:'#ba3a3a'};
 
-  // tiny maps (20x12 tiles each)
-  function makeMap(name, tiles, encounters){ return {name, w:20, h:12, tiles, encounters:encounters||[], npcs:[], chests:[], doors:[], hazard:[]}; }
+  function makeMap(name, tiles, encounters){ return {name, w:20, h:12, tiles, encounters:encounters||[], npcs:[], chests:[], doors:[]}; }
 
-  // Overworld layout
+  // maps
   const MAP_OVERWORLD = makeMap('Overworld',[
     1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
     1,0,0,0,0,0,0,0,0,6,0,0,0,0,0,0,0,0,4,1,
@@ -210,7 +203,6 @@
     1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
   ]);
 
-  // Cave
   const MAP_CAVE = makeMap('Glimmer Caves',[
     1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
     1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,7,1,
@@ -226,7 +218,6 @@
     1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
   ]);
 
-  // Volcano / Boss
   const MAP_VOLCANO = makeMap('Ashen Throat',[
     1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
     1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,7,1,
@@ -242,183 +233,160 @@
     1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
   ]);
 
-  // link special tiles
-  MAP_OVERWORLD.doors.push({x:17,y:4,to:MAP_OVERWORLD, tx:18,ty:10, requireKey:true}); // door near middle
+  // connections
+  function addDoor(a,x,y,b,tx,ty,opts={}){ a.doors.push({x,y,to:b,tx,ty, ...opts}); }
+  addDoor(MAP_OVERWORLD,2,4,MAP_CAVE,2,10,{stairs:true});
+  addDoor(MAP_CAVE,18,1,MAP_OVERWORLD,18,9,{stairs:true});
+  addDoor(MAP_OVERWORLD,18,10,MAP_VOLCANO,2,10,{stairs:true});
+  addDoor(MAP_VOLCANO,1,10,MAP_OVERWORLD,18,9,{stairs:true});
+  addDoor(MAP_OVERWORLD,17,4,MAP_OVERWORLD,18,10,{requireKey:true}); // intra-map shortcut door
+
+  // props & encounters
   MAP_OVERWORLD.chests.push({x:16,y:2, item:'key', opened:false});
   MAP_OVERWORLD.npcs.push({x:9,y:1, text:"The ember remembers. Down the stairs you'll find glimmering caverns."});
   MAP_OVERWORLD.npcs.push({x:1,y:10, text:"A gate of ember seals the volcano. A blade may wake it."});
-  MAP_OVERWORLD.encounters.push({x:6,y:5,type:'slime'});
-  MAP_OVERWORLD.encounters.push({x:14,y:6,type:'slime'});
-  MAP_OVERWORLD.encounters.push({x:3,y:8,type:'slime'});
+  MAP_OVERWORLD.encounters=[{x:6,y:5,type:'slime'},{x:14,y:6,type:'slime'},{x:3,y:8,type:'slime'}];
 
   MAP_CAVE.chests.push({x:3,y:3, item:'potion', opened:false});
   MAP_CAVE.chests.push({x:11,y:3, item:'sword', opened:false});
   MAP_CAVE.npcs.push({x:7,y:3, text:"These crystals hum like whispers. Beware the Ember Guardian."});
-  MAP_CAVE.encounters.push({x:5,y:5,type:'bat'});
-  MAP_CAVE.encounters.push({x:15,y:5,type:'bat'});
+  MAP_CAVE.encounters=[{x:5,y:5,type:'bat'},{x:15,y:5,type:'bat'}];
 
   MAP_VOLCANO.npcs.push({x:7,y:3, text:"Only the brave cross burning breath."});
-  MAP_VOLCANO.encounters.push({x:3,y:3,type:'emberling'});
-  MAP_VOLCANO.encounters.push({x:11,y:3,type:'emberling'});
-  // boss gate at (18,10) tile type 8: open if sword collected, leads to boss chamber area (center)
+  MAP_VOLCANO.encounters=[{x:3,y:3,type:'emberling'},{x:11,y:3,type:'emberling'}];
 
-  // Map connections: stairs (tile 7)
-  function addStairs(a,x,y,b,tx,ty){ a.doors.push({x,y,to:b,tx,ty, stairs:true}); }
-  addStairs(MAP_OVERWORLD,2,4,MAP_CAVE,2,10);
-  addStairs(MAP_CAVE,18,1,MAP_OVERWORLD,18,9);
-  addStairs(MAP_OVERWORLD,18,10,MAP_VOLCANO,2,10);
-  addStairs(MAP_VOLCANO,1,10,MAP_OVERWORLD,18,9);
-
-  // --- entities ---
-  function makePlayer(){ return {x:2*TILE,y:2*TILE, w:12,h:12, hp:10, hpMax:10, inv:[], map:MAP_OVERWORLD, hasWon:false, name:'', slot:0}; }
+  // entities
+  function makePlayer(){ return {x:2*TILE,y:2*TILE, w:12,h:12, dir:1, hp:10, hpMax:10, inv:[], map:MAP_OVERWORLD, hasWon:false, name:'', slot:0, iFrames:0}; }
   let player = makePlayer();
 
-  const DIFF_STATS = {
+  const DIFF = {
     easy:{ enemyHp:3, enemyDmg:1, bossHp:16, bossDmg:1, lava:1 },
     ok:{ enemyHp:5, enemyDmg:2, bossHp:20, bossDmg:2, lava:2 },
     hard:{ enemyHp:7, enemyDmg:3, bossHp:26, bossDmg:3, lava:3 }
   };
-  function getDiff(){ return (all.settings?.difficulty)||'ok'; }
+  const getDiff=()=> (all.settings?.difficulty)||'ok';
+  const has=item=> player.inv.includes(item);
+  const grant=item=>{ if(!has(item)){ player.inv.push(item); toast(`Picked up ${item}!`);} };
 
-  function has(item){ return player.inv.includes(item); }
-  function grant(item){ if(!has(item)){ player.inv.push(item); toast(`Picked up ${item}!`);} }
-
-  // enemies
   function makeEnemy(type,x,y){
-    const d = DIFF_STATS[getDiff()]||DIFF_STATS.ok;
+    const d = DIFF[getDiff()]||DIFF.ok;
     const base = {x,y,w:12,h:12, type, hp:d.enemyHp, alive:true, dmg:d.enemyDmg, lastHit:0};
-    if(type==='emberling'){ base.dmg = d.enemyDmg+1; base.hp = d.enemyHp+1; }
+    if(type==='emberling'){ base.dmg=d.enemyDmg+1;base.hp=d.enemyHp+1; }
     if(type==='bat'){ base.w=10;base.h=10; }
     return base;
   }
-  function spawnForMap(map){
-    const arr=[]; map.encounters.forEach(e=>{ arr.push(makeEnemy(e.type, e.x*TILE+2, e.y*TILE+2)); }); return arr;
-  }
+  function spawnForMap(map){ return map.encounters.map(e=> makeEnemy(e.type, e.x*TILE+2, e.y*TILE+2)); }
   let enemies = spawnForMap(MAP_OVERWORLD);
 
   // boss
-  let boss = null;
-  function spawnBoss(){
-    const d = DIFF_STATS[getDiff()]||DIFF_STATS.ok;
-    boss = {x: 9*TILE, y:5*TILE, w:14, h:14, hp:d.bossHp, dmg:d.bossDmg, alive:true, phase:0, lastShot:0};
-  }
+  let boss=null;
+  function spawnBoss(){ const d=DIFF[getDiff()]||DIFF.ok; boss={x:9*TILE,y:5*TILE,w:14,h:14,hp:d.bossHp,dmg:d.bossDmg,alive:true,phase:0, lastHit:0}; }
 
-  // --- collisions & tiles ---
-  function tileAt(map, px, py){
-    const tx = clamp(Math.floor(px/TILE),0,map.w-1), ty = clamp(Math.floor(py/TILE),0,map.h-1);
-    return { id: map.tiles[ty*map.w+tx], x:tx, y:ty };
-  }
-  function isBlocked(id){ return id===1 || id===2; }
+  // tiles
+  const tileAt=(map,px,py)=>{ const tx=clamp(Math.floor(px/TILE),0,map.w-1), ty=clamp(Math.floor(py/TILE),0,map.h-1); return { id: map.tiles[ty*map.w+tx], x:tx, y:ty } };
+  const isBlocked=id=> id===1 || id===2;
 
   function moveEntity(e, dx, dy){
-    const map=e.map||player.map; const nx=e.x+dx, ny=e.y+dy;
-    const corners=[
-      tileAt(map, nx, ny), tileAt(map, nx+e.w, ny), tileAt(map, nx, ny+e.h), tileAt(map, nx+e.w, ny+e.h)
-    ];
-    if(corners.some(c=>isBlocked(c.id))) return; // blocked
-    e.x = nx; e.y = ny;
+    const map=e.map||player.map; let nx=e.x+dx, ny=e.y+dy;
+    const corners=[ tileAt(map,nx,ny), tileAt(map,nx+e.w,ny), tileAt(map,nx,ny+e.h), tileAt(map,nx+e.w,ny+e.h) ];
+    if(corners.some(c=>isBlocked(c.id))) return; e.x=nx; e.y=ny;
   }
 
-  // --- draw ---
-  function rect(x,y,w,h,color){ ctx.fillStyle=color; ctx.fillRect(x,y,w,h); }
+  // draw helpers
+  const rect=(x,y,w,h,c)=>{ ctx.fillStyle=c; ctx.fillRect(x,y,w,h); };
   function drawMap(map){
     for(let y=0;y<map.h;y++){
       for(let x=0;x<map.w;x++){
-        const id = map.tiles[y*map.w+x];
-        let c = COLORS[id]||'#222';
-        if(id===0 && map===MAP_OVERWORLD) c = ( ((x+y)&1)? '#197b27':'#1e9631');
-        if(id===0 && map!==MAP_OVERWORLD) c = ( ((x+y)&1)? '#222':'#262626');
-        if(id===9) c = ( ((x+y)&1)? '#a22':'#b33');
+        const id=map.tiles[y*map.w+x]; let c=COLORS[id]||'#222';
+        if(id===0 && map===MAP_OVERWORLD) c = (((x+y)&1)? '#187528':'#1f9a34');
+        if(id===0 && map!==MAP_OVERWORLD) c = (((x+y)&1)? '#1b2030':'#1f2538');
+        if(id===9) c = (((x+y)&1)? '#aa2222':'#bf3a3a');
         rect(x*TILE,y*TILE,TILE,TILE,c);
         if(id===5){ rect(x*TILE+4,y*TILE+4,8,8,'#c93'); rect(x*TILE+4,y*TILE+6,8,4,'#642'); }
         if(id===6){ rect(x*TILE+2,y*TILE+6,12,4,'#bbb'); }
-        if(id===8){ rect(x*TILE+2,y*TILE+2,12,12,'#400'); rect(x*TILE+5,y*TILE+5,6,6,'#900'); }
-        if(id===4){ rect(x*TILE+4,y*TILE+4,8,8,'#532'); }
+        if(id===8){ rect(x*TILE+2,y*TILE+2,12,12,'#410'); rect(x*TILE+5,y*TILE+5,6,6,'#900'); }
+        if(id===4){ rect(x*TILE+4,y*TILE+4,8,8,'#543'); }
       }
     }
   }
-  function drawPlayer(){ rect(player.x, player.y, player.w, player.h, '#eee'); if(has('sword')){ rect(player.x+player.w, player.y+2, 6,2, '#ddd'); }}
-  function drawEnemies(){ enemies.forEach(e=>{ if(!e.alive) return; const color = e.type==='slime'? '#39f' : (e.type==='bat'? '#bbb':'#f64'); rect(e.x,e.y,e.w,e.h,color); }); }
-  function drawBoss(){ if(!boss || !boss.alive) return; rect(boss.x,boss.y,boss.w,boss.h,'#ff6'); }
-
-  // --- combat ---
-  function overlap(a,b){ return !(a.x+a.w<b.x || b.x+b.w<a.x || a.y+a.h<b.y || b.y+b.h<a.y); }
-  function damagePlayer(n){ player.hp-=n; if(player.hp<=0){ player.hp=0; gameOver(); } }
-  function attack(e){ // player melee if sword
-    if(!has('sword')) return; // short reach to right/dirless
-    const hitbox = {x:player.x+player.w, y:player.y+2, w:6, h:8};
-    if(e && overlap(hitbox,e)) { e.hp--; e.lastHit=now(); if(e.hp<=0){ e.alive=false; }
+  function drawPlayer(){
+    // tiny sprite w/ outline + direction indicator
+    rect(player.x-1,player.y-1,player.w+2,player.h+2,'#000');
+    rect(player.x,player.y,player.w,player.h,'#eaeaea');
+    // visor / face by direction
+    if(player.dir===-1) rect(player.x+2,player.y+4,3,3,'#111'); else rect(player.x+7,player.y+4,3,3,'#111');
+    if(has('sword')){ // show sword to the facing side
+      if(player.dir===1) rect(player.x+player.w, player.y+3, 6,2, '#ddd'); else rect(player.x-6, player.y+3, 6,2, '#ddd');
     }
   }
+  const drawEnemies=()=> enemies.forEach(e=>{ if(!e.alive) return; const color = e.type==='slime'? '#39f' : (e.type==='bat'? '#bbb':'#f64'); rect(e.x-1,e.y-1,e.w+2,e.h+2,'#000'); rect(e.x,e.y,e.w,e.h,color); });
+  const drawBoss=()=>{ if(!boss||!boss.alive) return; rect(boss.x-1,boss.y-1,boss.w+2,boss.h+2,'#000'); rect(boss.x,boss.y,boss.w,boss.h,'#ffea77'); };
 
-  // --- game loop state ---
-  let last = 0, dt = 0, paused=false, inGame=false, transitioning=false;
-  function togglePause(){ if(!inGame) return; paused=!paused; show(UI.pause,paused); }
+  // combat & overlap
+  const overlap=(a,b)=> !(a.x+a.w<b.x || b.x+b.w<a.x || a.y+a.h<b.y || b.y+b.h<a.y);
+  function damagePlayer(n){ if(player.iFrames>0) return; player.hp-=n; player.iFrames=400; if(player.hp<=0){ player.hp=0; gameOver(); } }
+  function attackEntity(target){ if(!has('sword')||!target) return; const range= {x: player.x + (player.dir===1? player.w: -8), y: player.y+2, w:8, h:8}; if(overlap(range,target)){ target.hp--; target.lastHit=now(); if(target.hp<=0){ target.alive=false; }}}
 
-  function update(t){ dt=(t-last)/1000; last=t; if(!inGame || paused) { requestAnimationFrame(update); return; }
+  // loop state
+  let last=0, dt=0, paused=false, inGame=false, transitioning=false;
+  function togglePause(){ paused=!paused; show(UI.pause,paused); }
+
+  function update(t){ dt=(t-last)/1000; last=t; if(!inGame || paused){ requestAnimationFrame(update); return; }
+    // timers
+    player.iFrames=Math.max(0, player.iFrames - dt*1000);
+
     // movement
-    const sp= has('boots')? 90:70; let dx=0,dy=0;
-    if(keys['a']||keys['arrowleft']) dx-=sp*dt;
-    if(keys['d']||keys['arrowright']) dx+=sp*dt;
-    if(keys['w']||keys['arrowup']) dy-=sp*dt;
-    if(keys['s']||keys['arrowdown']) dy+=sp*dt;
-    moveEntity(player,dx,0); moveEntity(player,0,dy);
+    const sp= 75; let dx=0,dy=0; let moved=false;
+    if(keys.get('a')||keys.get('arrowleft')){ dx-=sp*dt; player.dir=-1; moved=true; }
+    if(keys.get('d')||keys.get('arrowright')){ dx+=sp*dt; player.dir=1; moved=true; }
+    if(keys.get('w')||keys.get('arrowup')){ dy-=sp*dt; moved=true; }
+    if(keys.get('s')||keys.get('arrowdown')){ dy+=sp*dt; moved=true; }
+    if(dx!==0) moveEntity(player,dx,0); if(dy!==0) moveEntity(player,0,dy);
 
-    // hazards (lava in volcano)
+    // hazards (lava)
     const t0 = tileAt(player.map, player.x+player.w/2, player.y+player.h/2);
-    if(player.map===MAP_VOLCANO && t0.id===9){ damagePlayer(DIFF_STATS[getDiff()].lava*dt*3); }
+    if(player.map===MAP_VOLCANO && t0.id===9){ damagePlayer(DIFF[getDiff()].lava*dt*3); }
 
     // actions
-    if(keys[' ']){ // space to attack
-      enemies.forEach(e=>{ if(e.alive) attack(e); }); attack(boss);
-    }
+    if(keys.get(' ')){ enemies.forEach(e=> e.alive && attackEntity(e)); attackEntity(boss); }
 
-    // enemy AI (simple drift towards player)
+    // enemy AI
     enemies.forEach(e=>{
-      if(!e.alive) return; const s=40*dt; const vx=Math.sign((player.x)-(e.x))*s, vy=Math.sign((player.y)-(e.y))*s; moveEntity(e,vx,vy);
-      if(overlap(e,player) && (now()-e.lastHit)>400){ e.lastHit=now(); damagePlayer(e.dmg); }
+      if(!e.alive) return; const s=38*dt; const vx=Math.sign((player.x)-(e.x))*s, vy=Math.sign((player.y)-(e.y))*s; moveEntity(e,vx,vy);
+      if(overlap(e,player) && (now()-e.lastHit)>450){ e.lastHit=now(); damagePlayer(e.dmg); }
     });
 
-    // boss behavior
-    if(boss && boss.alive){
-      // simple chase and pulse damage
-      const s=45*dt; moveEntity(boss, Math.sign(player.x-boss.x)*s, Math.sign(player.y-boss.y)*s);
-      if(overlap(boss,player) && (now()-boss.lastShot)>500){ boss.lastShot=now(); damagePlayer(boss.dmg); }
-      if(has('sword')) attack(boss);
-      if(boss.hp<=0){ boss.alive=false; player.hasWon=true; ending(); }
-    }
+    // boss
+    if(boss && boss.alive){ const s=42*dt; moveEntity(boss, Math.sign(player.x-boss.x)*s, Math.sign(player.y-boss.y)*s); if(overlap(boss,player) && (now()-boss.lastHit)>520){ boss.lastHit=now(); damagePlayer(boss.dmg); } if(has('sword')) attackEntity(boss); if(boss.hp<=0){ boss.alive=false; player.hasWon=true; ending(); } }
 
-    // interactions with tiles
+    // interactions
     handleTiles();
 
     // draw
-    render();
-    requestAnimationFrame(update);
+    render(); requestAnimationFrame(update);
   }
 
-  function render(){
-    ctx.imageSmoothingEnabled=false; ctx.clearRect(0,0,W,H);
-    drawMap(player.map); drawEnemies(); drawBoss(); drawPlayer();
-    HUD.hp.textContent = `HP: ${player.hp.toFixed(0)}/${player.hpMax}`;
-    HUD.inv.textContent = `Items: ${player.inv.join(', ')||'None'}`;
-    HUD.where.textContent = `Area: ${player.map.name}`;
-    HUD.diff.textContent = `Diff: ${getDiff().toUpperCase()}`;
-  }
+  function render(){ ctx.imageSmoothingEnabled=false; ctx.clearRect(0,0,W,H); drawMap(player.map); drawEnemies(); drawBoss(); drawPlayer(); HUD.hp.textContent = `HP: ${player.hp.toFixed(0)}/${player.hpMax}`; HUD.inv.textContent = `Items: ${player.inv.join(', ')||'None'}`; HUD.where.textContent = `Area: ${player.map.name}`; HUD.diff.textContent = `Diff: ${getDiff().toUpperCase()}`; }
 
   function handleTiles(){
     const center = {x:player.x+player.w/2, y:player.y+player.h/2};
     const t = tileAt(player.map, center.x, center.y);
 
-    // chests
+    // chests (E to open)
     (player.map.chests||[]).forEach(ch=>{
-      if(ch.opened) return; const box={x:ch.x*TILE+3, y:ch.y*TILE+3, w:10, h:10};
-      if(overlap({x:center.x,y:center.y,w:2,h:2}, box) && keys['e']){ ch.opened=true; grant(ch.item); }
+      if(ch.opened) return; const box={x:ch.x*TILE+2,y:ch.y*TILE+2,w:12,h:12};
+      if(overlap({x:center.x-1,y:center.y-1,w:2,h:2}, box)){
+        if(keys.get('e')){ ch.opened=true; grant(ch.item); }
+        else say("Press E to open chest");
+      }
     });
 
-    // npcs
+    // npcs (E to read)
     (player.map.npcs||[]).forEach(n=>{
-      const box={x:n.x*TILE+2,y:n.y*TILE+2,w:12,h:12};
-      if(overlap({x:center.x,y:center.y,w:2,h:2}, box) && keys['e']) say(n.text);
+      const box={x:n.x*TILE+1,y:n.y*TILE+1,w:14,h:14};
+      if(overlap({x:center.x-1,y:center.y-1,w:2,h:2}, box)){
+        if(keys.get('e')) say(n.text); else say("Press E to talk",900);
+      }
     });
 
     // doors / stairs / gates
@@ -431,123 +399,77 @@
       }
     });
 
-    // boss gate tile (8) at volcano entrance opens if sword
+    // overworld ember gate tile (8) lets you in if sword is owned
     if(player.map===MAP_OVERWORLD && t.id===8){ if(has('sword')){ changeMap(MAP_VOLCANO,2,10);} else say("The Ember Gate thirsts for steel."); }
   }
 
-  function changeMap(map, tx, ty){ if(transitioning) return; transitioning=true; fade(()=>{
-    player.map = map; enemies = spawnForMap(map); player.x=tx*TILE+2; player.y=ty*TILE+2; transitioning=false; }); }
+  function changeMap(map, tx, ty){ if(transitioning) return; transitioning=true; fade(()=>{ player.map = map; enemies = spawnForMap(map); player.x=tx*TILE+2; player.y=ty*TILE+2; transitioning=false; }); }
+  function fade(after){ let a=1; const step=()=>{ ctx.fillStyle=`rgba(0,0,0,${a})`; ctx.fillRect(0,0,W,H); a-=0.08; if(a>0) requestAnimationFrame(step); else after(); }; step(); }
 
-  function fade(after){
-    let a=1; const step=()=>{ ctx.fillStyle=`rgba(0,0,0,${a})`; ctx.fillRect(0,0,W,H); a-=0.08; if(a>0) requestAnimationFrame(step); else after(); };
-    step();
-  }
-
-  // --- dialogue / cutscene ---
-  let sayTimer=0; function say(text, ms=1600){ UI.cutscene.innerHTML = `<span class="name">✦</span> ${text}`; show(UI.cutscene,true); clearTimeout(sayTimer); sayTimer=setTimeout(()=>show(UI.cutscene,false), ms); }
+  // dialogue / cutscene
+  let sayTimer=0; function say(text, ms=1400){ UI.cutscene.innerHTML = `<span class="name">✦</span> ${text}`; show(UI.cutscene,true); clearTimeout(sayTimer); sayTimer=setTimeout(()=>show(UI.cutscene,false), ms); }
   function introCutscene(){ show(UI.cutscene,true); const lines=[
     "Long ago, a Super Hero chased a monster into a volcano…",
     "They never returned. The mountain kept their body—",
     "—but their courage cooled into an ember of memory.",
-    "Tonight, that ember woke inside you." ,
+    "Tonight, that ember woke inside you.",
     "Find the Ashen Throat. Face what the Hero could not."
   ]; let i=0; const next=()=>{ if(i<lines.length){ UI.cutscene.innerHTML = `<span class=\"name\">Lore</span> — ${lines[i++]}`; setTimeout(next, 2200);} else { setTimeout(()=>show(UI.cutscene,false), 800);} }; next(); }
-
-  function ending(){ paused=true; show(UI.pause,false); show(UI.cutscene,true); UI.cutscene.innerHTML = `<b>The ember is free.</b>\n<br/>The volcano exhales. In its quiet glow, you learn the truth: the end boss wore the Hero's mask. Pride, not a monster, was sealed here.\n<br/><br/>Thanks for playing! Press <b>T</b> then Main Menu to save your victory.`; }
-
+  function ending(){ paused=true; show(UI.pause,false); show(UI.cutscene,true); UI.cutscene.innerHTML = `<b>The ember is free.</b><br/>The volcano exhales. In its quiet glow, you learn the truth: the end boss wore the Hero's mask. Pride, not a monster, was sealed here.<br/><br/>Thanks for playing! Press <b>T</b> then Main Menu to save your victory.`; }
   function gameOver(){ paused=true; show(UI.pause,true); say("You fall… but embers never truly die.", 2000); }
 
-  // --- menus ---
-  function setMenu(which){ show(UI.menu, which==='main'); show(UI.load, which==='load'); show(UI.settings, which==='settings'); }
+  // menus
+  const setMenu=(which)=>{ show(UI.menu, which==='main'); show(UI.load, which==='load'); show(UI.settings, which==='settings'); };
 
-  function buildSlots(){ const el=document.getElementById('slots'); el.innerHTML='';
-    const fmt = ts=> new Date(ts).toLocaleString();
-    all = loadAll();
-    all.slots.forEach((slot,idx)=>{
-      const card=document.createElement('div'); card.className='slot';
-      const name = slot?.name || '';
-      card.innerHTML = `
+  function buildSlots(){ const el=document.getElementById('slots'); el.innerHTML=''; const fmt=ts=> new Date(ts).toLocaleString(); all=loadAll(); all.slots.forEach((slot,idx)=>{
+      const card=document.createElement('div'); card.className='slot'; const name=slot?.name||''; card.innerHTML=`
       <h3>Slot ${idx+1} ${name? '— '+name:''}</h3>
       <div class="row">
         <input type="text" placeholder="Name this slot" value="${name}" data-idx="${idx}" class="slotname"/>
         <button class="btn ok" data-idx="${idx}" data-act="saveName">Save name</button>
       </div>
-      <p class="note">${slot? `Level: ${slot.inv?.includes('sword')?'Armed':'Novice'} · HP ${slot.hp}/${slot.hpMax} · ${slot.map||'Overworld'} · Saved ${fmt(slot.ts)}` : 'Empty slot'}</p>
+      <p class="note">${slot? `HP ${slot.hp}/${slot.hpMax} · ${slot.map||'Overworld'} · ${slot.hasWon?'✨ Won':'In progress'} · Saved ${fmt(slot.ts)}` : 'Empty slot'}</p>
       <div class="row">
         <button class="btn primary" data-idx="${idx}" data-act="continue" ${slot? '':'disabled'}>Continue</button>
         <button class="btn" data-idx="${idx}" data-act="newHere">New Here</button>
         <button class="btn danger" data-idx="${idx}" data-act="erase">Delete</button>
-      </div>`;
-      el.appendChild(card);
-    });
-
-    // events
-    el.querySelectorAll('button').forEach(b=> b.addEventListener('click', evSlotBtn));
-  }
+      </div>`; el.appendChild(card); }); el.querySelectorAll('button').forEach(b=> b.addEventListener('click', evSlotBtn)); }
 
   function evSlotBtn(e){ const idx=+e.target.dataset.idx; const act=e.target.dataset.act; const nameInput = e.target.parentElement.parentElement.querySelector('.slotname');
     if(act==='saveName'){
-      const name=nameInput.value.trim(); if(name.toLowerCase()==='pia'){ toast('Hi Pia, this game was designed for you ♥'); setTimeout(()=>{}, 3000); }
-      all.slots[idx] = all.slots[idx] || {};
-      all.slots[idx].name=name; saveAll(all); toast('Name saved'); return;
+      const name=(nameInput.value||'').trim(); if(name.toLowerCase()==='pia'){ show(UI.egg,true); setTimeout(()=>show(UI.egg,false), 3000); }
+      all.slots[idx] = all.slots[idx] || {}; all.slots[idx].name=name; saveAll(all); toast('Name saved'); return;
     }
-    if(act==='continue'){
-      loadFromSlot(idx); startGame(); return;
-    }
-    if(act==='newHere'){
-      newGame(idx); startGame(); return;
-    }
-    if(act==='erase'){
-      all.slots[idx]=null; saveAll(all); buildSlots(); toast('Slot cleared'); return;
-    }
+    if(act==='continue'){ loadFromSlot(idx); startGame(); return; }
+    if(act==='newHere'){ newGame(idx); startGame(); return; }
+    if(act==='erase'){ all.slots[idx]=null; saveAll(all); buildSlots(); toast('Slot cleared'); return; }
   }
 
   function newGame(slotIndex){ player=makePlayer(); player.slot=slotIndex; player.name = all.slots[slotIndex]?.name||''; inGame=true; HUD.root.style.display='flex'; introCutscene(); }
-
-  function startGame(){ setMenu(null); show(HUD.root,true); inGame=true; paused=false; requestAnimationFrame(update); }
-
+  function startGame(){ setMenu(null); show(HUD.root,true); inGame=true; paused=false; requestAnimationFrame(update); render(); }
   function returnToMenu(){ inGame=false; paused=false; show(UI.pause,false); HUD.root.style.display='none'; setMenu('main'); }
 
-  function saveToSlot(){ if(!inGame) return; const s={
-    x:player.x,y:player.y,hp:player.hp,hpMax:player.hpMax,inv:player.inv,map:player.map.name,hasWon:player.hasWon,name:player.name,ts:Date.now()
-  }; all=loadAll(); const idx=player.slot||0; const existing=all.slots[idx]||{}; s.name = existing.name||player.name||''; all.slots[idx]=s; saveAll(all); toast('Saved'); }
+  function saveToSlot(){ if(!inGame) return; const s={ x:player.x,y:player.y,hp:player.hp,hpMax:player.hpMax,inv:player.inv,map:player.map.name,hasWon:player.hasWon,name:player.name,ts:Date.now() }; all=loadAll(); const idx=player.slot||0; const existing=all.slots[idx]||{}; s.name = existing.name||player.name||''; all.slots[idx]=s; saveAll(all); toast('Saved'); }
+  function loadFromSlot(idx){ all=loadAll(); const s=all.slots[idx]; if(!s){ newGame(idx); return; } player=makePlayer(); player.slot=idx; Object.assign(player,{ x:s.x??player.x, y:s.y??player.y, hp:s.hp??player.hp, hpMax:s.hpMax??player.hpMax, inv:s.inv||[], hasWon:!!s.hasWon, name:s.name||'' }); player.map = (s.map==='Glimmer Caves')? MAP_CAVE : (s.map==='Ashen Throat'? MAP_VOLCANO : MAP_OVERWORLD); enemies = spawnForMap(player.map); if(player.map===MAP_VOLCANO) spawnBoss(); }
 
-  function loadFromSlot(idx){ all=loadAll(); const s=all.slots[idx]; if(!s){ newGame(idx); return; }
-    player=makePlayer(); player.slot=idx; player.x=s.x||player.x; player.y=s.y||player.y; player.hp=s.hp||player.hp; player.hpMax=s.hpMax||player.hpMax; player.inv=s.inv||[]; player.hasWon=!!s.hasWon; player.name=s.name||'';
-    player.map = (s.map==='Glimmer Caves')? MAP_CAVE : (s.map==='Ashen Throat'? MAP_VOLCANO : MAP_OVERWORLD);
-    enemies = spawnForMap(player.map);
-  }
-
-  // --- wire UI ---
-  buttons.new.addEventListener('click', ()=>{ setMenu('load'); buildSlots(); toast('Choose a slot for your new journey.'); });
-  buttons.load.addEventListener('click', ()=>{ setMenu('load'); buildSlots(); });
-  buttons.settings.addEventListener('click', ()=>{ setMenu('settings'); });
-  buttons.exit.addEventListener('click', ()=>{
-    // attempt to close, fall back to navigating away
-    window.close(); setTimeout(()=>{ location.href='about:blank'; }, 150);
-  });
-  buttons.backFromLoad.addEventListener('click', ()=> setMenu('main'));
-  buttons.backFromSettings.addEventListener('click', ()=>{ setMenu('main'); });
-
-  buttons.login.addEventListener('click', ()=>{ all.settings.nick = inputNick.value.trim(); saveAll(all); toast(`Welcome${all.settings.nick? ', '+all.settings.nick:''}!`); });
+  // wire UI
+  BTN.new.addEventListener('click', ()=>{ setMenu('load'); buildSlots(); toast('Pick a slot for your new adventure.'); });
+  BTN.load.addEventListener('click', ()=>{ setMenu('load'); buildSlots(); });
+  BTN.settings.addEventListener('click', ()=> setMenu('settings'));
+  BTN.exit.addEventListener('click', ()=>{ window.close(); setTimeout(()=>{ document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#ccd">Goodbye!</div>'; }, 100); });
+  BTN.backFromLoad.addEventListener('click', ()=> setMenu('main'));
+  BTN.backFromSettings.addEventListener('click', ()=> setMenu('main'));
+  BTN.login.addEventListener('click', ()=>{ all.settings.nick = inputNick.value.trim(); saveAll(all); toast(`Welcome${all.settings.nick? ', '+all.settings.nick:''}!`); });
   ddDifficulty.addEventListener('change', ()=>{ all.settings.difficulty = ddDifficulty.value; saveAll(all); toast('Difficulty set to '+ddDifficulty.value.toUpperCase()); });
+  BTN.resume.addEventListener('click', ()=> togglePause());
+  BTN.save.addEventListener('click', ()=> saveToSlot());
+  BTN.mainMenu.addEventListener('click', ()=>{ saveToSlot(); returnToMenu(); });
 
-  buttons.resume.addEventListener('click', ()=> togglePause());
-  buttons.save.addEventListener('click', ()=> saveToSlot());
-  buttons.mainMenu.addEventListener('click', ()=>{ saveToSlot(); returnToMenu(); });
+  // safety: pause when tab unfocused
+  window.addEventListener('blur', ()=>{ if(inGame){ paused=true; show(UI.pause,true); }});
 
-  // --- keyboard hints ---
-  window.addEventListener('blur', ()=> paused=true);
-
-  // show starting menu
-  setMenu('main');
-  show(HUD.root,false);
-
-  // controls legend tooltip
-  toast('Controls: WASD/Arrows move · SPACE attack · E interact · T pause');
-
-  // start loop
-  requestAnimationFrame(update);
+  // boot
+  setMenu('main'); show(HUD.root,false); toast('Controls: WASD/Arrows move · SPACE attack · E interact · T pause'); requestAnimationFrame(update);
 })();
 </script>
 </body>
