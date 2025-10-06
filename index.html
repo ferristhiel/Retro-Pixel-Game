@@ -2,496 +2,553 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Tiny Arcade – Pixel Board • Randomizer • Clicker</title>
-<meta name="description" content="A tiny retro web toy: pixel board, random generator, and clicker game. All client-side, no backend." />
-
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Echo of the Ember – a tiny retro adventure</title>
 <style>
-  /* ========== Retro Theme ========== */
   :root{
-    --bg: #111216;
-    --panel: #191b22;
-    --panel-2: #21232c;
-    --ink: #e8f1ff;
-    --muted: #9fb1d4;
-    --accent: #6cf085;     /* neon green */
-    --accent-2:#ff6ad5;    /* hot pink */
-    --accent-3:#ffd166;    /* sunflower */
-    --danger: #ff4d4d;
-    --shadow: #00000080;
-    --pixel: 8px;          /* adjust for chunkiness */
+    --fg:#e7e7e7;--bg:#111;--muted:#888;--accent:#00d8a7;--warn:#ff3b3b;--ok:#4caf50;
   }
-
-  html,body{
-    height:100%;
-    margin:0;
-    background:
-      radial-gradient(1200px 800px at 80% -10%, #242838 0%, transparent 60%),
-      radial-gradient(1000px 700px at -10% 100%, #1c2030 0%, transparent 60%),
-      var(--bg);
-    color:var(--ink);
-    font-family: ui-monospace, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    image-rendering: pixelated;
-  }
-
-  /* Pixel-style headings */
-  h1,h2,h3{
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    text-shadow: 0 2px 0 #000, 0 0 12px #6cf08540;
-    margin: 0 0 12px 0;
-  }
-  h1{ font-size: clamp(20px, 3vw, 28px); }
-  h2{ font-size: 16px; color: var(--muted); }
-
-  /* Layout */
-  .wrap{
-    max-width: 1100px;
-    margin: 24px auto 64px;
-    padding: 0 16px;
-  }
-  .grid{
-    display:grid;
-    grid-template-columns: repeat(12, 1fr);
-    gap: 16px;
-  }
-  @media (max-width: 960px){
-    .grid{ grid-template-columns: 1fr; }
-  }
-
-  /* Cards with chunky borders */
-  .card{
-    background: linear-gradient(180deg, var(--panel), var(--panel-2));
-    border: solid 4px #000;
-    box-shadow:
-      0 calc(var(--pixel)/2) 0 0 #000,
-      0 8px 24px var(--shadow),
-      inset 0 0 0 2px #2a2e3b;
-    border-radius: 12px;
-    padding: 16px;
-    position: relative;
-    overflow: hidden;
-  }
-  .ribbon{
-    position:absolute; inset:auto -20px 12px auto;
-    background: repeating-linear-gradient(45deg, var(--accent), var(--accent) 10px, var(--accent-2) 10px, var(--accent-2) 20px);
-    color:#000; font-weight:700; padding:4px 16px; transform: rotate(-8deg);
-    border:3px solid #000; box-shadow:0 2px 0 #000;
-  }
-
-  /* Buttons */
-  .btn{
-    display:inline-block;
-    background: var(--accent);
-    color:#001a07;
-    border:3px solid #001a07;
-    box-shadow:0 3px 0 #001a07, 0 6px 16px #0008;
-    padding:10px 14px;
-    text-decoration:none;
-    font-weight:800;
-    cursor:pointer;
-    transition: transform .06s ease;
-    border-radius:8px;
-  }
-  .btn:hover{ transform: translateY(-1px); }
-  .btn:active{ transform: translateY(1px); box-shadow:0 1px 0 #001a07; }
-  .btn.secondary{ background: var(--accent-3); color:#231400; border-color:#231400; }
-  .btn.danger{ background: var(--danger); color:#1a0000; border-color:#1a0000; }
-
-  /* Inputs */
-  .ctrls{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin: 10px 0 14px; }
-  .select, .input{
-    background:#0f1118; color:var(--ink);
-    border:2px solid #000;
-    box-shadow: inset 0 0 0 2px #2a2e3b;
-    padding:8px 10px; border-radius:8px;
-    font-weight:700;
-  }
-  .note{ color:var(--muted); font-size:13px; line-height:1.4; }
-
-  /* ========== Pixel Board ========== */
-  .board{
-    --size: 16;           /* number of cells per side */
-    --cell: 22px;         /* pixel cell size */
-    display:grid;
-    grid-template-columns: repeat(var(--size), var(--cell));
-    grid-template-rows: repeat(var(--size), var(--cell));
-    gap: 2px;
-    user-select:none;
-    touch-action: manipulation;
-    background:#0b0e15;
-    border:3px solid #000;
-    padding:6px;
-    border-radius:10px;
-    width: max-content;
-  }
-  .cell{
-    width: var(--cell);
-    height: var(--cell);
-    background:#1a1f2b;
-    border:2px solid #000;
-    box-shadow: inset 0 0 0 2px #2a2e3b;
-    transition: transform .05s ease, box-shadow .15s ease, background .2s ease;
-  }
-  .cell:hover{ transform: translateY(-1px); box-shadow: inset 0 0 0 2px #394057; }
-  .me{ outline: 2px solid var(--accent); box-shadow: 0 0 10px #6cf08580 inset, 0 0 10px #6cf08580; }
-
-  .legend { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:10px; }
-  .chip { display:inline-flex; align-items:center; gap:8px; background:#0f1118; padding:6px 10px; border-radius:8px; border:2px solid #000; box-shadow: inset 0 0 0 2px #2a2e3b; font-size:13px; }
-  .swatch{ width:16px; height:16px; border:2px solid #000; box-shadow: inset 0 0 0 2px #2a2e3b; border-radius:4px; }
-
-  /* ========== Randomizer ========== */
-  .output{
-    min-height: 64px;
-    background:#0f1118;
-    border:2px solid #000;
-    box-shadow: inset 0 0 0 2px #2a2e3b;
-    border-radius:10px;
-    padding:12px;
-    font-size: 15px;
-    line-height:1.5;
-  }
-  .sparkle{
-    animation: sparkle .8s ease-out;
-  }
-  @keyframes sparkle{
-    0%{ text-shadow:0 0 0 transparent; transform: scale(0.98);}
-    60%{ text-shadow:0 0 24px #6cf08580; transform: scale(1.01);}
-    100%{ text-shadow:0 0 0 transparent; transform: scale(1);}
-  }
-
-  /* ========== Clicker ========== */
-  .score{
-    font-size: 28px; font-weight:900; letter-spacing:0.04em;
-    text-shadow:0 3px 0 #000, 0 0 12px #ffd16655;
-    margin:6px 0 12px;
-  }
-  .pop{
-    position:absolute; pointer-events:none; font-weight:900;
-    animation: rise .7s ease-out forwards;
-    text-shadow: 0 2px 0 #000;
-  }
-  @keyframes rise{
-    0%{ transform: translateY(0) scale(1); opacity:1;}
-    100%{ transform: translateY(-24px) scale(1.2); opacity:0;}
-  }
-
-  /* Footer */
-  footer{ margin:24px 0 0; text-align:center; color:var(--muted); font-size:12px; }
-  a{ color: var(--accent); }
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif}
+  *{box-sizing:border-box}
+  .flex{display:flex}
+  .col{flex-direction:column}
+  .center{align-items:center;justify-content:center}
+  .btn{background:#222;border:2px solid #333;color:var(--fg);padding:.6rem 1rem;margin:.3rem 0;font-size:18px;cursor:pointer;border-radius:8px;transition:transform .06s ease, background .2s}
+  .btn:hover{background:#2a2a2a;transform:translateY(-1px)}
+  .btn:active{transform:translateY(1px)}
+  .btn.primary{border-color:var(--accent)}
+  .btn.danger{border-color:var(--warn)}
+  .btn.ok{border-color:var(--ok)}
+  .menu{position:absolute;inset:0;display:none}
+  .menu.active{display:flex}
+  .panel{background:#0a0a0a;border:2px solid #333;border-radius:14px;box-shadow:0 8px 40px rgba(0,0,0,.5);padding:20px;min-width:320px;max-width:720px}
+  h1,h2,h3{margin:.2rem 0}
+  h1.title{font-size:42px;letter-spacing:1px;text-shadow:0 2px 0 #000, 0 0 16px rgba(0,216,167,.35)}
+  p.mono{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #bdbdbd}
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .note{color:#aaa;font-size:12px;margin-top:6px}
+  .grid{display:grid;grid-template-columns:repeat(2,minmax(180px,1fr));gap:12px}
+  .slot{border:2px dashed #333;border-radius:10px;padding:12px}
+  .slot h3{margin:0 0 6px 0}
+  input[type="text"], select{width:100%;background:#0f0f0f;border:2px solid #333;color:var(--fg);padding:.5rem;border-radius:8px;font-size:16px}
+  label{font-size:14px;color:#bbb}
+  .toast{position:fixed;left:50%;top:10%;transform:translateX(-50%);background:#111;border:2px solid #333;padding:.6rem 1rem;border-radius:10px;display:none}
+  .toast.show{display:block}
+  .hud{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;gap:8px;padding:6px 8px;font-family: ui-monospace, monospace}
+  .hud .pill{background:#121212;border:2px solid #333;padding:6px 10px;border-radius:10px}
+  .pauseOverlay{position:absolute;inset:0;background:rgba(0,0,0,.7);display:none}
+  .pauseOverlay.active{display:flex}
+  .cutscene{position:absolute;inset:auto 0 0 0;background:rgba(0,0,0,.88);padding:12px 14px;border-top:2px solid #333;font-family: ui-monospace, monospace}
+  .cutscene .name{color:var(--accent)}
+  canvas{image-rendering: pixelated; image-rendering: crisp-edges; width: 960px; height: 540px; border:2px solid #222; border-radius:12px; background:#000}
+  .viewport{position:relative;display:flex;gap:16px;align-items:flex-start;justify-content:center;margin:16px}
+  @media (max-width: 1020px){ canvas{ width: 90vw; height: calc(90vw * 9 / 16);} }
 </style>
 </head>
 <body>
-  <div class="wrap">
-    <header style="margin-bottom:18px">
-      <h1>🕹️ Tiny Arcade</h1>
-      <h2>Pixel Board • Randomizer • Clicker — all local, no backend.</h2>
-    </header>
-
-    <div class="grid">
-      <!-- ========== Pixel Board Card ========== -->
-      <section class="card" style="grid-column: span 6">
-        <div class="ribbon">Retro</div>
-        <h3>🎨 Pixel Board</h3>
-        <p class="note">Place <b>one</b> pixel on this 16×16 board. Your choice (position + color) is saved locally and can be reset anytime.</p>
-        <div class="ctrls">
-          <label class="chip" title="Pick a color">
-            <span>Color</span>
-            <input id="pb-color" class="input" type="color" value="#6cf085" />
-          </label>
-          <button id="pb-reset" class="btn danger" title="Remove my pixel">Reset my pixel</button>
-        </div>
-        <div id="board" class="board" aria-label="Pixel board 16 by 16" role="grid"></div>
-        <div class="legend">
-          <span class="chip"><span class="swatch" style="background:#1a1f2b"></span>Empty</span>
-          <span class="chip"><span class="swatch" style="background: var(--accent)"></span>Yours</span>
-          <span class="note">This is per-user only (no server). Great for prototyping!</span>
-        </div>
-      </section>
-
-      <!-- ========== Randomizer Card ========== -->
-      <section class="card" style="grid-column: span 6">
-        <h3>🎲 Random Generator</h3>
-        <p class="note">Pick a type and smash “Generate”. Your last choice persists.</p>
-        <div class="ctrls">
-          <select id="rand-type" class="select" aria-label="Random content type">
-            <option value="joke">Jokes</option>
-            <option value="excuse">Excuses</option>
-            <option value="quote">Quotes</option>
-            <option value="emoji">Emojis</option>
-          </select>
-          <button id="rand-btn" class="btn">Generate</button>
-          <button id="rand-copy" class="btn secondary" title="Copy to clipboard">Copy</button>
-        </div>
-        <div id="rand-out" class="output" role="status" aria-live="polite"></div>
-      </section>
-
-      <!-- ========== Clicker Game Card ========== -->
-      <section class="card" style="grid-column: span 12; position: relative;">
-        <h3>🔘 Clicker Game</h3>
-        <p class="note">Earn points by pressing the button. Your score and high score are saved. Simple, silly, satisfying.</p>
-        <div class="ctrls">
-          <div class="score" id="score">Score: 0 • High: 0</div>
-          <button id="clicker" class="btn" style="font-size:18px; padding:14px 18px">+1 Click!</button>
-          <button id="clicker-reset" class="btn danger">Reset Score</button>
-        </div>
-        <div id="pop-layer" aria-hidden="true"></div>
-      </section>
-    </div>
-
-    <footer>
-      Built with ♥ and JavaScript. No cookies, no tracking — just <em>localStorage</em>. Fork & tweak freely.
-    </footer>
+<div class="viewport flex col center">
+  <canvas id="game" width="320" height="180" aria-label="Retro canvas"></canvas>
+  <div class="hud" id="hud" style="display:none">
+    <div class="pill" id="hp">HP: --</div>
+    <div class="pill" id="inv">Items: —</div>
+    <div class="pill" id="where">Area: —</div>
+    <div class="pill" id="diff">Diff: —</div>
   </div>
 
+  <!-- MAIN MENU -->
+  <section id="menu" class="menu active flex center">
+    <div class="panel">
+      <h1 class="title">Echo of the Ember</h1>
+      <p class="mono">A one-file retro adventure. Move with <b>WASD / Arrow Keys</b>. Press <b>T</b> for pause & save.</p>
+      <div class="row">
+        <button class="btn primary" id="btnNew">New Game</button>
+        <button class="btn" id="btnLoad">Load Game</button>
+        <button class="btn" id="btnSettings">Settings</button>
+        <button class="btn danger" id="btnExit">Exit</button>
+      </div>
+      <p class="note">Tip: There are 3 save slots. Name a slot <b>Pia</b> for a surprise ✨</p>
+    </div>
+  </section>
+
+  <!-- LOAD MENU -->
+  <section id="load" class="menu flex center">
+    <div class="panel">
+      <h2>Load Game</h2>
+      <div id="slots" class="grid"></div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn" id="backFromLoad">Back</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section id="settings" class="menu flex center">
+    <div class="panel">
+      <h2>Settings</h2>
+      <div class="row">
+        <div style="flex:1">
+          <label>Difficulty</label>
+          <select id="difficulty">
+            <option value="easy">Easy</option>
+            <option value="ok" selected>Ok</option>
+            <option value="hard">Hard</option>
+          </select>
+        </div>
+        <div style="flex:1">
+          <label>Login / Sign in</label>
+          <div class="row">
+            <input id="username" type="text" placeholder="Nickname" />
+            <button id="btnLogin" class="btn ok">Save</button>
+          </div>
+          <p class="note">This is a local nickname only (no servers involved).</p>
+        </div>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn" id="backFromSettings">Back</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- PAUSE OVERLAY -->
+  <section id="pause" class="pauseOverlay flex center col">
+    <div class="panel" style="min-width:360px">
+      <h2>Paused</h2>
+      <div class="row">
+        <button id="btnResume" class="btn primary">Resume (T)</button>
+        <button id="btnSave" class="btn ok">Save</button>
+        <button id="btnMainMenu" class="btn">Main Menu</button>
+      </div>
+      <p class="note">Use T to toggle pause. Saving writes to your chosen slot.</p>
+    </div>
+  </section>
+
+  <div id="cutscene" class="cutscene" style="display:none"></div>
+  <div id="toast" class="toast"></div>
+</div>
+
 <script>
-/* ==========================================================
-   Utilities & Storage
-========================================================== */
-const store = {
-  get(key, fallback=null){
-    try{ const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
-    catch(e){ console.warn('storage get failed', e); return fallback; }
-  },
-  set(key, value){
-    try{ localStorage.setItem(key, JSON.stringify(value)); }
-    catch(e){ console.warn('storage set failed', e); }
-  },
-  del(key){ try{ localStorage.removeItem(key); }catch(e){} }
-};
-
-const $ = sel => document.querySelector(sel);
-
-/* ==========================================================
-   Pixel Board (single-pixel-per-user)
-   Keys: PB_CHOICE = { x, y, color }
-========================================================== */
+/**
+ * Echo of the Ember – tiny Zelda-like in one HTML
+ * Features:
+ * - Pixel canvas, WASD/Arrows
+ * - Start menu with New/Load/Settings/Exit
+ * - 3 save slots w/ names, Easter egg when naming a slot "Pia"
+ * - LocalStorage persistence; Pause menu on T with Save/Resume/Main
+ * - Difficulty: easy / ok / hard (affects damage, enemy HP)
+ * - Story intro cutscene (a hero lost in a volcano, their ash becomes a guiding ember)
+ * - Overworld + cave + volcano boss map, items (Key, Sword, Potion)
+ * - Boss fight and an ending
+ */
 (function(){
-  const SIZE = 16;
-  const board = $('#board');
-  const colorInput = $('#pb-color');
-  const resetBtn = $('#pb-reset');
-  const KEY = 'PB_CHOICE_V1';
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const HUD = {
+    root: document.getElementById('hud'), hp: document.getElementById('hp'), inv: document.getElementById('inv'), where: document.getElementById('where'), diff: document.getElementById('diff')
+  };
+  const UI = {
+    menu: document.getElementById('menu'), load: document.getElementById('load'), settings: document.getElementById('settings'), pause: document.getElementById('pause'),
+    cutscene: document.getElementById('cutscene'), toast: document.getElementById('toast')
+  };
+  const buttons = {
+    new: document.getElementById('btnNew'), load: document.getElementById('btnLoad'), settings: document.getElementById('btnSettings'), exit: document.getElementById('btnExit'),
+    backFromLoad: document.getElementById('backFromLoad'), backFromSettings: document.getElementById('backFromSettings'),
+    login: document.getElementById('btnLogin'), resume: document.getElementById('btnResume'), save: document.getElementById('btnSave'), mainMenu: document.getElementById('btnMainMenu')
+  };
+  const ddDifficulty = document.getElementById('difficulty');
+  const inputNick = document.getElementById('username');
 
-  // Build grid
-  board.style.setProperty('--size', SIZE);
-  const frag = document.createDocumentFragment();
+  const TILE = 16; // pixels per tile (virtual)
+  const W = canvas.width, H = canvas.height;
 
-  // Load previous choice
-  let choice = store.get(KEY, null);
-  if (choice && typeof choice.color === 'string') {
-    colorInput.value = choice.color;
+  // --- helpers ---
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const rnd=(n)=>Math.floor(Math.random()*n);
+  const now=()=>performance.now();
+  const show=(el, on)=>{ el.style.display = on? (el.classList.contains('menu')? 'flex':'block') : 'none'; };
+  const toast=(msg,ms=1600)=>{ UI.toast.textContent=msg; UI.toast.classList.add('show'); setTimeout(()=>UI.toast.classList.remove('show'),ms); };
+
+  // --- persistence ---
+  const STORE_KEY = 'echo-ember-saves-v1';
+  const defaultSaves = () => ({ slots:[null,null,null], settings:{difficulty:'ok', nick:''} });
+  function loadAll(){ try{ return JSON.parse(localStorage.getItem(STORE_KEY))||defaultSaves(); }catch(e){ return defaultSaves(); } }
+  function saveAll(data){ localStorage.setItem(STORE_KEY, JSON.stringify(data)); }
+  let all = loadAll();
+  // apply saved settings
+  ddDifficulty.value = all.settings?.difficulty || 'ok';
+  inputNick.value = all.settings?.nick || '';
+
+  // --- input ---
+  const keys={};
+  window.addEventListener('keydown',e=>{ keys[e.key.toLowerCase()]=true; if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) keys[e.key]=true; if(e.key==='t' || e.key==='T') togglePause(); });
+  window.addEventListener('keyup',e=>{ keys[e.key.toLowerCase()]=false; if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) keys[e.key]=false; });
+
+  // --- world data ---
+  /** Tile legend
+   * 0 floor/grass, 1 wall/rock, 2 water/lava (blocked), 3 door, 4 cave entrance, 5 chest
+   * 6 sign, 7 stairs down/up, 8 boss gate, 9 volcano lava (hurts)
+   */
+  const COLORS = {
+    0:'#1c8c2d', 1:'#444444', 2:'#2a4a8a', 3:'#c2a30a', 4:'#7b4b17', 5:'#9c6', 6:'#ddd', 7:'#6666aa', 8:'#8b0000', 9:'#b33'
+  };
+
+  // tiny maps (20x12 tiles each)
+  function makeMap(name, tiles, encounters){ return {name, w:20, h:12, tiles, encounters:encounters||[], npcs:[], chests:[], doors:[], hazard:[]}; }
+
+  // Overworld layout
+  const MAP_OVERWORLD = makeMap('Overworld',[
+    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+    1,0,0,0,0,0,0,0,0,6,0,0,0,0,0,0,0,0,4,1,
+    1,0,0,0,1,1,1,0,0,0,0,0,1,1,1,0,5,0,0,1,
+    1,0,0,0,1,2,1,0,0,0,0,0,1,2,1,0,0,0,0,1,
+    1,0,7,0,1,0,1,0,1,1,1,0,1,0,1,0,0,3,0,1,
+    1,0,0,0,0,0,0,0,1,2,1,0,0,0,0,0,0,0,0,1,
+    1,0,0,0,1,1,1,0,1,0,1,0,1,1,1,0,0,0,0,1,
+    1,0,0,0,1,0,1,0,1,0,1,0,1,0,1,0,0,0,0,1,
+    1,0,0,0,1,0,1,0,1,0,1,0,1,0,1,0,0,0,0,1,
+    1,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,1,
+    1,4,0,0,1,0,1,0,1,0,1,0,1,0,1,0,0,0,8,1,
+    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+  ]);
+
+  // Cave
+  const MAP_CAVE = makeMap('Glimmer Caves',[
+    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+    1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,7,1,
+    1,0,1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,0,0,1,
+    1,0,1,5,1,0,1,6,1,0,1,5,1,0,1,6,1,0,0,1,
+    1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,0,1,
+    1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+    1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,0,1,
+    1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,0,1,
+    1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+    1,0,0,0,1,1,1,0,1,0,1,0,1,1,1,0,0,0,0,1,
+    1,7,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,1,
+    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+  ]);
+
+  // Volcano / Boss
+  const MAP_VOLCANO = makeMap('Ashen Throat',[
+    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+    1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,7,1,
+    1,0,1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,0,0,1,
+    1,0,1,9,1,0,1,6,1,0,1,9,1,0,1,6,1,0,0,1,
+    1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,0,1,
+    1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+    1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,0,1,
+    1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,0,1,
+    1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+    1,0,0,0,1,1,1,0,1,0,1,0,1,1,1,0,0,0,0,1,
+    1,7,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8,1,
+    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+  ]);
+
+  // link special tiles
+  MAP_OVERWORLD.doors.push({x:17,y:4,to:MAP_OVERWORLD, tx:18,ty:10, requireKey:true}); // door near middle
+  MAP_OVERWORLD.chests.push({x:16,y:2, item:'key', opened:false});
+  MAP_OVERWORLD.npcs.push({x:9,y:1, text:"The ember remembers. Down the stairs you'll find glimmering caverns."});
+  MAP_OVERWORLD.npcs.push({x:1,y:10, text:"A gate of ember seals the volcano. A blade may wake it."});
+  MAP_OVERWORLD.encounters.push({x:6,y:5,type:'slime'});
+  MAP_OVERWORLD.encounters.push({x:14,y:6,type:'slime'});
+  MAP_OVERWORLD.encounters.push({x:3,y:8,type:'slime'});
+
+  MAP_CAVE.chests.push({x:3,y:3, item:'potion', opened:false});
+  MAP_CAVE.chests.push({x:11,y:3, item:'sword', opened:false});
+  MAP_CAVE.npcs.push({x:7,y:3, text:"These crystals hum like whispers. Beware the Ember Guardian."});
+  MAP_CAVE.encounters.push({x:5,y:5,type:'bat'});
+  MAP_CAVE.encounters.push({x:15,y:5,type:'bat'});
+
+  MAP_VOLCANO.npcs.push({x:7,y:3, text:"Only the brave cross burning breath."});
+  MAP_VOLCANO.encounters.push({x:3,y:3,type:'emberling'});
+  MAP_VOLCANO.encounters.push({x:11,y:3,type:'emberling'});
+  // boss gate at (18,10) tile type 8: open if sword collected, leads to boss chamber area (center)
+
+  // Map connections: stairs (tile 7)
+  function addStairs(a,x,y,b,tx,ty){ a.doors.push({x,y,to:b,tx,ty, stairs:true}); }
+  addStairs(MAP_OVERWORLD,2,4,MAP_CAVE,2,10);
+  addStairs(MAP_CAVE,18,1,MAP_OVERWORLD,18,9);
+  addStairs(MAP_OVERWORLD,18,10,MAP_VOLCANO,2,10);
+  addStairs(MAP_VOLCANO,1,10,MAP_OVERWORLD,18,9);
+
+  // --- entities ---
+  function makePlayer(){ return {x:2*TILE,y:2*TILE, w:12,h:12, hp:10, hpMax:10, inv:[], map:MAP_OVERWORLD, hasWon:false, name:'', slot:0}; }
+  let player = makePlayer();
+
+  const DIFF_STATS = {
+    easy:{ enemyHp:3, enemyDmg:1, bossHp:16, bossDmg:1, lava:1 },
+    ok:{ enemyHp:5, enemyDmg:2, bossHp:20, bossDmg:2, lava:2 },
+    hard:{ enemyHp:7, enemyDmg:3, bossHp:26, bossDmg:3, lava:3 }
+  };
+  function getDiff(){ return (all.settings?.difficulty)||'ok'; }
+
+  function has(item){ return player.inv.includes(item); }
+  function grant(item){ if(!has(item)){ player.inv.push(item); toast(`Picked up ${item}!`);} }
+
+  // enemies
+  function makeEnemy(type,x,y){
+    const d = DIFF_STATS[getDiff()]||DIFF_STATS.ok;
+    const base = {x,y,w:12,h:12, type, hp:d.enemyHp, alive:true, dmg:d.enemyDmg, lastHit:0};
+    if(type==='emberling'){ base.dmg = d.enemyDmg+1; base.hp = d.enemyHp+1; }
+    if(type==='bat'){ base.w=10;base.h=10; }
+    return base;
+  }
+  function spawnForMap(map){
+    const arr=[]; map.encounters.forEach(e=>{ arr.push(makeEnemy(e.type, e.x*TILE+2, e.y*TILE+2)); }); return arr;
+  }
+  let enemies = spawnForMap(MAP_OVERWORLD);
+
+  // boss
+  let boss = null;
+  function spawnBoss(){
+    const d = DIFF_STATS[getDiff()]||DIFF_STATS.ok;
+    boss = {x: 9*TILE, y:5*TILE, w:14, h:14, hp:d.bossHp, dmg:d.bossDmg, alive:true, phase:0, lastShot:0};
   }
 
-  for(let y=0; y<SIZE; y++){
-    for(let x=0; x<SIZE; x++){
-      const cell = document.createElement('button');
-      cell.className = 'cell';
-      cell.setAttribute('role','gridcell');
-      cell.setAttribute('aria-label', `Cell ${x+1}, ${y+1}`);
-      cell.dataset.x = x;
-      cell.dataset.y = y;
-      cell.title = `(${x+1}, ${y+1})`;
+  // --- collisions & tiles ---
+  function tileAt(map, px, py){
+    const tx = clamp(Math.floor(px/TILE),0,map.w-1), ty = clamp(Math.floor(py/TILE),0,map.h-1);
+    return { id: map.tiles[ty*map.w+tx], x:tx, y:ty };
+  }
+  function isBlocked(id){ return id===1 || id===2; }
 
-      // If this cell is the stored one, paint it
-      if(choice && choice.x === x && choice.y === y){
-        cell.style.background = choice.color;
-        cell.classList.add('me');
+  function moveEntity(e, dx, dy){
+    const map=e.map||player.map; const nx=e.x+dx, ny=e.y+dy;
+    const corners=[
+      tileAt(map, nx, ny), tileAt(map, nx+e.w, ny), tileAt(map, nx, ny+e.h), tileAt(map, nx+e.w, ny+e.h)
+    ];
+    if(corners.some(c=>isBlocked(c.id))) return; // blocked
+    e.x = nx; e.y = ny;
+  }
+
+  // --- draw ---
+  function rect(x,y,w,h,color){ ctx.fillStyle=color; ctx.fillRect(x,y,w,h); }
+  function drawMap(map){
+    for(let y=0;y<map.h;y++){
+      for(let x=0;x<map.w;x++){
+        const id = map.tiles[y*map.w+x];
+        let c = COLORS[id]||'#222';
+        if(id===0 && map===MAP_OVERWORLD) c = ( ((x+y)&1)? '#197b27':'#1e9631');
+        if(id===0 && map!==MAP_OVERWORLD) c = ( ((x+y)&1)? '#222':'#262626');
+        if(id===9) c = ( ((x+y)&1)? '#a22':'#b33');
+        rect(x*TILE,y*TILE,TILE,TILE,c);
+        if(id===5){ rect(x*TILE+4,y*TILE+4,8,8,'#c93'); rect(x*TILE+4,y*TILE+6,8,4,'#642'); }
+        if(id===6){ rect(x*TILE+2,y*TILE+6,12,4,'#bbb'); }
+        if(id===8){ rect(x*TILE+2,y*TILE+2,12,12,'#400'); rect(x*TILE+5,y*TILE+5,6,6,'#900'); }
+        if(id===4){ rect(x*TILE+4,y*TILE+4,8,8,'#532'); }
       }
-
-      cell.addEventListener('click', () => {
-        const myColor = colorInput.value || '#6cf085';
-        const prev = store.get(KEY, null);
-
-        // If already placed somewhere else, disallow without reset
-        if (prev && !(prev.x === x && prev.y === y)) {
-          wiggle(board);
-          toast("You already placed your pixel. Hit “Reset my pixel” to change it.");
-          return;
-        }
-
-        // Place/update your pixel
-        choice = { x, y, color: myColor };
-        store.set(KEY, choice);
-
-        // Repaint: clear previous highlight then set this one
-        board.querySelectorAll('.cell.me').forEach(c => {
-          c.classList.remove('me');
-          c.style.background = '#1a1f2b';
-        });
-        cell.style.background = myColor;
-        cell.classList.add('me');
-        pulse(cell);
-      });
-
-      frag.appendChild(cell);
     }
   }
-  board.appendChild(frag);
+  function drawPlayer(){ rect(player.x, player.y, player.w, player.h, '#eee'); if(has('sword')){ rect(player.x+player.w, player.y+2, 6,2, '#ddd'); }}
+  function drawEnemies(){ enemies.forEach(e=>{ if(!e.alive) return; const color = e.type==='slime'? '#39f' : (e.type==='bat'? '#bbb':'#f64'); rect(e.x,e.y,e.w,e.h,color); }); }
+  function drawBoss(){ if(!boss || !boss.alive) return; rect(boss.x,boss.y,boss.w,boss.h,'#ff6'); }
 
-  // Reset
-  resetBtn.addEventListener('click', () => {
-    const prev = store.get(KEY, null);
-    if (!prev) { toast("No pixel to reset."); return; }
-    store.del(KEY);
-    choice = null;
-    board.querySelectorAll('.cell.me').forEach(c => {
-      c.classList.remove('me');
-      c.style.background = '#1a1f2b';
+  // --- combat ---
+  function overlap(a,b){ return !(a.x+a.w<b.x || b.x+b.w<a.x || a.y+a.h<b.y || b.y+b.h<a.y); }
+  function damagePlayer(n){ player.hp-=n; if(player.hp<=0){ player.hp=0; gameOver(); } }
+  function attack(e){ // player melee if sword
+    if(!has('sword')) return; // short reach to right/dirless
+    const hitbox = {x:player.x+player.w, y:player.y+2, w:6, h:8};
+    if(e && overlap(hitbox,e)) { e.hp--; e.lastHit=now(); if(e.hp<=0){ e.alive=false; }
+    }
+  }
+
+  // --- game loop state ---
+  let last = 0, dt = 0, paused=false, inGame=false, transitioning=false;
+  function togglePause(){ if(!inGame) return; paused=!paused; show(UI.pause,paused); }
+
+  function update(t){ dt=(t-last)/1000; last=t; if(!inGame || paused) { requestAnimationFrame(update); return; }
+    // movement
+    const sp= has('boots')? 90:70; let dx=0,dy=0;
+    if(keys['a']||keys['arrowleft']) dx-=sp*dt;
+    if(keys['d']||keys['arrowright']) dx+=sp*dt;
+    if(keys['w']||keys['arrowup']) dy-=sp*dt;
+    if(keys['s']||keys['arrowdown']) dy+=sp*dt;
+    moveEntity(player,dx,0); moveEntity(player,0,dy);
+
+    // hazards (lava in volcano)
+    const t0 = tileAt(player.map, player.x+player.w/2, player.y+player.h/2);
+    if(player.map===MAP_VOLCANO && t0.id===9){ damagePlayer(DIFF_STATS[getDiff()].lava*dt*3); }
+
+    // actions
+    if(keys[' ']){ // space to attack
+      enemies.forEach(e=>{ if(e.alive) attack(e); }); attack(boss);
+    }
+
+    // enemy AI (simple drift towards player)
+    enemies.forEach(e=>{
+      if(!e.alive) return; const s=40*dt; const vx=Math.sign((player.x)-(e.x))*s, vy=Math.sign((player.y)-(e.y))*s; moveEntity(e,vx,vy);
+      if(overlap(e,player) && (now()-e.lastHit)>400){ e.lastHit=now(); damagePlayer(e.dmg); }
     });
-    toast("Pixel reset. Pick a new spot!");
-  });
 
-  // Small visual flourish helpers
-  function wiggle(el){
-    el.animate([{transform:'translateX(0)'},{transform:'translateX(-3px)'},{transform:'translateX(3px)'},{transform:'translateX(0)'}], {duration:140, iterations:1});
-  }
-  function pulse(el){
-    el.animate([{filter:'brightness(1)'},{filter:'brightness(1.6)'},{filter:'brightness(1)'}],{duration:250, iterations:1});
-  }
-})();
-
-/* ==========================================================
-   Random Generator
-   Keys: RAND_TYPE, RAND_LAST
-========================================================== */
-(function(){
-  const select = $('#rand-type');
-  const btn = $('#rand-btn');
-  const copyBtn = $('#rand-copy');
-  const out = $('#rand-out');
-
-  const JOKES = [
-    "I told my computer I needed a break — it said 'No problem, I’ll go to sleep.'",
-    "Why do Java developers wear glasses? Because they don't C#.",
-    "There are 10 kinds of people: those who understand binary and those who don't."
-  ];
-  const EXCUSES = [
-    "My code compiled on my machine.",
-    "The Wi-Fi used tabs, I use spaces.",
-    "A cosmic ray flipped a bit, honest."
-  ];
-  const QUOTES = [
-    "“Simplicity is the soul of efficiency.” — Austin Freeman",
-    "“Programs must be written for people to read.” — Harold Abelson",
-    "“First, solve the problem. Then, write the code.” — John Johnson"
-  ];
-  const EMOJIS = ["🤖","🕹️","✨","🧠","🧩","🎯","🌀","💾","⚡","🧪","🎲","🎉"];
-
-  // restore last type
-  const lastType = store.get('RAND_TYPE', 'joke');
-  select.value = lastType;
-
-  function pick(arr){
-    return arr[Math.floor(Math.random() * arr.length)];
-  }
-  function gen(){
-    const type = select.value;
-    store.set('RAND_TYPE', type);
-    let text = "";
-    switch(type){
-      case 'joke': text = pick(JOKES); break;
-      case 'excuse': text = pick(EXCUSES); break;
-      case 'quote': text = pick(QUOTES); break;
-      case 'emoji': text = EMOJIS.slice(0).sort(()=>Math.random()-0.5).slice(0,Math.floor(3+Math.random()*5)).join(' '); break;
+    // boss behavior
+    if(boss && boss.alive){
+      // simple chase and pulse damage
+      const s=45*dt; moveEntity(boss, Math.sign(player.x-boss.x)*s, Math.sign(player.y-boss.y)*s);
+      if(overlap(boss,player) && (now()-boss.lastShot)>500){ boss.lastShot=now(); damagePlayer(boss.dmg); }
+      if(has('sword')) attack(boss);
+      if(boss.hp<=0){ boss.alive=false; player.hasWon=true; ending(); }
     }
-    out.textContent = text;
-    out.classList.remove('sparkle'); void out.offsetWidth; out.classList.add('sparkle'); // retrigger animation
-    store.set('RAND_LAST', text);
+
+    // interactions with tiles
+    handleTiles();
+
+    // draw
+    render();
+    requestAnimationFrame(update);
   }
-
-  btn.addEventListener('click', gen);
-  copyBtn.addEventListener('click', async () => {
-    const text = out.textContent.trim();
-    if (!text) { toast("Nothing to copy yet."); return; }
-    try{
-      await navigator.clipboard.writeText(text);
-      toast("Copied to clipboard!");
-    }catch{
-      toast("Copy failed. Select the text and copy manually.");
-    }
-  });
-
-  // Seed output with last result for nice persistence
-  const seed = store.get('RAND_LAST', "");
-  if (seed) out.textContent = seed; else gen();
-})();
-
-/* ==========================================================
-   Clicker Game
-   Keys: CLICK_SCORE, CLICK_HIGH
-========================================================== */
-(function(){
-  const btn = $('#clicker');
-  const resetBtn = $('#clicker-reset');
-  const scoreEl = $('#score');
-  const popLayer = $('#pop-layer');
-  const K_SCORE = 'CLICK_SCORE_V1';
-  const K_HIGH  = 'CLICK_HIGH_V1';
-
-  let score = Number(store.get(K_SCORE, 0)) || 0;
-  let high  = Number(store.get(K_HIGH, 0))  || 0;
-  render();
-
-  btn.addEventListener('click', (e) => {
-    score++;
-    if (score > high) { high = score; store.set(K_HIGH, high); }
-    store.set(K_SCORE, score);
-    render();
-    pop(e.clientX, e.clientY, `+1`);
-  });
-
-  resetBtn.addEventListener('click', () => {
-    score = 0; store.set(K_SCORE, score);
-    render();
-    toast("Score reset.");
-  });
 
   function render(){
-    scoreEl.textContent = `Score: ${score} • High: ${high}`;
+    ctx.imageSmoothingEnabled=false; ctx.clearRect(0,0,W,H);
+    drawMap(player.map); drawEnemies(); drawBoss(); drawPlayer();
+    HUD.hp.textContent = `HP: ${player.hp.toFixed(0)}/${player.hpMax}`;
+    HUD.inv.textContent = `Items: ${player.inv.join(', ')||'None'}`;
+    HUD.where.textContent = `Area: ${player.map.name}`;
+    HUD.diff.textContent = `Diff: ${getDiff().toUpperCase()}`;
   }
 
-  function pop(x, y, text){
-    const el = document.createElement('div');
-    el.className = 'pop';
-    el.textContent = text;
-    // position relative to card
-    const cardRect = scoreEl.closest('.card').getBoundingClientRect();
-    const px = (x || (cardRect.left + cardRect.width/2)) - cardRect.left;
-    const py = (y || (cardRect.top + cardRect.height/2)) - cardRect.top;
-    el.style.left = (px - 8) + 'px';
-    el.style.top  = (py - 8) + 'px';
-    el.style.color = randFrom(['#6cf085','#ff6ad5','#ffd166','#8ecae6','#f94144']);
-    popLayer.appendChild(el);
-    setTimeout(()=> el.remove(), 750);
-  }
-  function randFrom(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
-})();
+  function handleTiles(){
+    const center = {x:player.x+player.w/2, y:player.y+player.h/2};
+    const t = tileAt(player.map, center.x, center.y);
 
-/* ==========================================================
-   Tiny Toast (no dependencies)
-========================================================== */
-let toastTimer = null;
-function toast(msg){
-  let bar = document.getElementById('toast-bar');
-  if (!bar){
-    bar = document.createElement('div');
-    bar.id = 'toast-bar';
-    Object.assign(bar.style, {
-      position:'fixed', left:'50%', bottom:'22px', transform:'translateX(-50%)',
-      background:'linear-gradient(180deg, #111, #222)', color:'#e8f1ff',
-      border:'3px solid #000', padding:'10px 14px', borderRadius:'10px',
-      boxShadow:'0 3px 0 #000, 0 8px 16px #0008', zIndex:9999,
-      fontFamily:'ui-monospace, Menlo, Monaco, Consolas, "Courier New", monospace',
-      fontWeight:'800', letterSpacing:'0.02em'
+    // chests
+    (player.map.chests||[]).forEach(ch=>{
+      if(ch.opened) return; const box={x:ch.x*TILE+3, y:ch.y*TILE+3, w:10, h:10};
+      if(overlap({x:center.x,y:center.y,w:2,h:2}, box) && keys['e']){ ch.opened=true; grant(ch.item); }
     });
-    document.body.appendChild(bar);
+
+    // npcs
+    (player.map.npcs||[]).forEach(n=>{
+      const box={x:n.x*TILE+2,y:n.y*TILE+2,w:12,h:12};
+      if(overlap({x:center.x,y:center.y,w:2,h:2}, box) && keys['e']) say(n.text);
+    });
+
+    // doors / stairs / gates
+    (player.map.doors||[]).forEach(d=>{
+      if(t.x===d.x && t.y===d.y){
+        if(d.requireKey && !has('key')){ say("Locked. A key is needed."); return; }
+        if(d.to===MAP_VOLCANO && !has('sword')){ say("A blazing sigil rejects the unarmed."); return; }
+        changeMap(d.to, d.tx, d.ty);
+        if(d.to===MAP_VOLCANO && !boss) spawnBoss();
+      }
+    });
+
+    // boss gate tile (8) at volcano entrance opens if sword
+    if(player.map===MAP_OVERWORLD && t.id===8){ if(has('sword')){ changeMap(MAP_VOLCANO,2,10);} else say("The Ember Gate thirsts for steel."); }
   }
-  bar.textContent = msg;
-  bar.style.opacity = '1';
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(()=> { bar.style.opacity='0'; }, 1400);
-}
+
+  function changeMap(map, tx, ty){ if(transitioning) return; transitioning=true; fade(()=>{
+    player.map = map; enemies = spawnForMap(map); player.x=tx*TILE+2; player.y=ty*TILE+2; transitioning=false; }); }
+
+  function fade(after){
+    let a=1; const step=()=>{ ctx.fillStyle=`rgba(0,0,0,${a})`; ctx.fillRect(0,0,W,H); a-=0.08; if(a>0) requestAnimationFrame(step); else after(); };
+    step();
+  }
+
+  // --- dialogue / cutscene ---
+  let sayTimer=0; function say(text, ms=1600){ UI.cutscene.innerHTML = `<span class="name">✦</span> ${text}`; show(UI.cutscene,true); clearTimeout(sayTimer); sayTimer=setTimeout(()=>show(UI.cutscene,false), ms); }
+  function introCutscene(){ show(UI.cutscene,true); const lines=[
+    "Long ago, a Super Hero chased a monster into a volcano…",
+    "They never returned. The mountain kept their body—",
+    "—but their courage cooled into an ember of memory.",
+    "Tonight, that ember woke inside you." ,
+    "Find the Ashen Throat. Face what the Hero could not."
+  ]; let i=0; const next=()=>{ if(i<lines.length){ UI.cutscene.innerHTML = `<span class=\"name\">Lore</span> — ${lines[i++]}`; setTimeout(next, 2200);} else { setTimeout(()=>show(UI.cutscene,false), 800);} }; next(); }
+
+  function ending(){ paused=true; show(UI.pause,false); show(UI.cutscene,true); UI.cutscene.innerHTML = `<b>The ember is free.</b>\n<br/>The volcano exhales. In its quiet glow, you learn the truth: the end boss wore the Hero's mask. Pride, not a monster, was sealed here.\n<br/><br/>Thanks for playing! Press <b>T</b> then Main Menu to save your victory.`; }
+
+  function gameOver(){ paused=true; show(UI.pause,true); say("You fall… but embers never truly die.", 2000); }
+
+  // --- menus ---
+  function setMenu(which){ show(UI.menu, which==='main'); show(UI.load, which==='load'); show(UI.settings, which==='settings'); }
+
+  function buildSlots(){ const el=document.getElementById('slots'); el.innerHTML='';
+    const fmt = ts=> new Date(ts).toLocaleString();
+    all = loadAll();
+    all.slots.forEach((slot,idx)=>{
+      const card=document.createElement('div'); card.className='slot';
+      const name = slot?.name || '';
+      card.innerHTML = `
+      <h3>Slot ${idx+1} ${name? '— '+name:''}</h3>
+      <div class="row">
+        <input type="text" placeholder="Name this slot" value="${name}" data-idx="${idx}" class="slotname"/>
+        <button class="btn ok" data-idx="${idx}" data-act="saveName">Save name</button>
+      </div>
+      <p class="note">${slot? `Level: ${slot.inv?.includes('sword')?'Armed':'Novice'} · HP ${slot.hp}/${slot.hpMax} · ${slot.map||'Overworld'} · Saved ${fmt(slot.ts)}` : 'Empty slot'}</p>
+      <div class="row">
+        <button class="btn primary" data-idx="${idx}" data-act="continue" ${slot? '':'disabled'}>Continue</button>
+        <button class="btn" data-idx="${idx}" data-act="newHere">New Here</button>
+        <button class="btn danger" data-idx="${idx}" data-act="erase">Delete</button>
+      </div>`;
+      el.appendChild(card);
+    });
+
+    // events
+    el.querySelectorAll('button').forEach(b=> b.addEventListener('click', evSlotBtn));
+  }
+
+  function evSlotBtn(e){ const idx=+e.target.dataset.idx; const act=e.target.dataset.act; const nameInput = e.target.parentElement.parentElement.querySelector('.slotname');
+    if(act==='saveName'){
+      const name=nameInput.value.trim(); if(name.toLowerCase()==='pia'){ toast('Hi Pia, this game was designed for you ♥'); setTimeout(()=>{}, 3000); }
+      all.slots[idx] = all.slots[idx] || {};
+      all.slots[idx].name=name; saveAll(all); toast('Name saved'); return;
+    }
+    if(act==='continue'){
+      loadFromSlot(idx); startGame(); return;
+    }
+    if(act==='newHere'){
+      newGame(idx); startGame(); return;
+    }
+    if(act==='erase'){
+      all.slots[idx]=null; saveAll(all); buildSlots(); toast('Slot cleared'); return;
+    }
+  }
+
+  function newGame(slotIndex){ player=makePlayer(); player.slot=slotIndex; player.name = all.slots[slotIndex]?.name||''; inGame=true; HUD.root.style.display='flex'; introCutscene(); }
+
+  function startGame(){ setMenu(null); show(HUD.root,true); inGame=true; paused=false; requestAnimationFrame(update); }
+
+  function returnToMenu(){ inGame=false; paused=false; show(UI.pause,false); HUD.root.style.display='none'; setMenu('main'); }
+
+  function saveToSlot(){ if(!inGame) return; const s={
+    x:player.x,y:player.y,hp:player.hp,hpMax:player.hpMax,inv:player.inv,map:player.map.name,hasWon:player.hasWon,name:player.name,ts:Date.now()
+  }; all=loadAll(); const idx=player.slot||0; const existing=all.slots[idx]||{}; s.name = existing.name||player.name||''; all.slots[idx]=s; saveAll(all); toast('Saved'); }
+
+  function loadFromSlot(idx){ all=loadAll(); const s=all.slots[idx]; if(!s){ newGame(idx); return; }
+    player=makePlayer(); player.slot=idx; player.x=s.x||player.x; player.y=s.y||player.y; player.hp=s.hp||player.hp; player.hpMax=s.hpMax||player.hpMax; player.inv=s.inv||[]; player.hasWon=!!s.hasWon; player.name=s.name||'';
+    player.map = (s.map==='Glimmer Caves')? MAP_CAVE : (s.map==='Ashen Throat'? MAP_VOLCANO : MAP_OVERWORLD);
+    enemies = spawnForMap(player.map);
+  }
+
+  // --- wire UI ---
+  buttons.new.addEventListener('click', ()=>{ setMenu('load'); buildSlots(); toast('Choose a slot for your new journey.'); });
+  buttons.load.addEventListener('click', ()=>{ setMenu('load'); buildSlots(); });
+  buttons.settings.addEventListener('click', ()=>{ setMenu('settings'); });
+  buttons.exit.addEventListener('click', ()=>{
+    // attempt to close, fall back to navigating away
+    window.close(); setTimeout(()=>{ location.href='about:blank'; }, 150);
+  });
+  buttons.backFromLoad.addEventListener('click', ()=> setMenu('main'));
+  buttons.backFromSettings.addEventListener('click', ()=>{ setMenu('main'); });
+
+  buttons.login.addEventListener('click', ()=>{ all.settings.nick = inputNick.value.trim(); saveAll(all); toast(`Welcome${all.settings.nick? ', '+all.settings.nick:''}!`); });
+  ddDifficulty.addEventListener('change', ()=>{ all.settings.difficulty = ddDifficulty.value; saveAll(all); toast('Difficulty set to '+ddDifficulty.value.toUpperCase()); });
+
+  buttons.resume.addEventListener('click', ()=> togglePause());
+  buttons.save.addEventListener('click', ()=> saveToSlot());
+  buttons.mainMenu.addEventListener('click', ()=>{ saveToSlot(); returnToMenu(); });
+
+  // --- keyboard hints ---
+  window.addEventListener('blur', ()=> paused=true);
+
+  // show starting menu
+  setMenu('main');
+  show(HUD.root,false);
+
+  // controls legend tooltip
+  toast('Controls: WASD/Arrows move · SPACE attack · E interact · T pause');
+
+  // start loop
+  requestAnimationFrame(update);
+})();
 </script>
 </body>
 </html>
