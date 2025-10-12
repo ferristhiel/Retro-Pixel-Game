@@ -92,4 +92,4 @@ You may:
 
 If you’d like to collaborate, remix, or publish a derivative version,  
 please contact **FT-Studios** for permission.
-https://ferristhiel.github.io/FT-Studios/
+https://ferristhiel.github.io/FT-Studios-permission/
