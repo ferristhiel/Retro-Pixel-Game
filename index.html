@@ -36,7 +36,7 @@
   .toast{position:fixed;left:50%;top:8%;transform:translateX(-50%);background:#0b1124;border:2px solid var(--edge);padding:.65rem 1rem;border-radius:12px;display:none;box-shadow:0 10px 24px rgba(0,0,0,.35);z-index:50}
   .toast.show{display:block}
 
-  .hud{position:absolute;left:0;right:0;top:0;display:flex;justify-content:center;gap:8px;padding:8px 8px;font-family: ui-monospace, monospace;pointer-events:none;z-index:10}
+  .hud{position:absolute;left:0;right:0;top:0;display:flex;justify-content:center;gap:8px;padding:8px 8px;font-family: ui-monospace, monospace;pointer-events:none;z-index:10;flex-wrap:wrap}
   .hud .pill{background:rgba(10,14,28,.9);border:2px solid var(--edge);padding:6px 10px;border-radius:12px}
 
   .pauseOverlay{position:absolute;inset:0;background:rgba(5,8,16,.78);backdrop-filter:blur(2px);display:none;z-index:40}
@@ -62,6 +62,9 @@
 
   /* subtle CRT scanlines */
   .crt:before{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(to bottom, rgba(255,255,255,.03), rgba(255,255,255,.03) 1px, transparent 2px, transparent 4px);border-radius:14px}
+
+  /* small helper */
+  .small{font-size:12px;color:#aab1c4;font-family: ui-monospace, monospace}
 </style>
 </head>
 <body>
@@ -73,15 +76,19 @@
     <div class="pill" id="inv">Items: —</div>
     <div class="pill" id="where">Area: —</div>
     <div class="pill" id="diff">Diff: —</div>
+    <div class="pill" id="slotsHud">Slots: —</div>
+    <div class="pill" id="mpHud" style="display:none">MP: —</div>
   </div>
 
   <!-- MAIN MENU -->
   <section id="menu" class="menu active flex center">
     <div class="panel">
       <h1 class="title" id="tTitle">Echo of the Ember</h1>
-      <p class="mono" id="tControls">
-        Move: <b>WASD</b>/<b>Arrows</b> · Attack/Shoot: <b>SPACE</b> · Interact: <b>E</b> · Block: <b>ENTER</b> · Pause/Save: <b>T</b> · Chat: <b>R</b>
-      </p>
+      <div class="row">
+        <a class="btn" id="btnControlsLink" href="https://Website.com" target="_blank" rel="noopener">Controls (Website)</a>
+        <button class="btn" id="btnMultiplayer">Multiplayer</button>
+      </div>
+
       <div class="row">
         <button class="btn primary" id="btnNew">New Game</button>
         <button class="btn" id="btnLoad">Load Game</button>
@@ -89,6 +96,32 @@
         <button class="btn danger" id="btnExit">Exit</button>
       </div>
       <p class="note" id="tNote">3 save slots. Hard = no saves + permadeath.</p>
+    </div>
+  </section>
+
+  <!-- MULTIPLAYER -->
+  <section id="multiplayer" class="menu flex center">
+    <div class="panel">
+      <h2>Multiplayer (Prototype)</h2>
+      <p class="small">
+        Host erzeugt Code (6 Zeichen). Join = Code eingeben.<br/>
+        Hinweis: “Echtes Online” braucht Server/Signaling. Hier ist ein Lobby-Prototyp + optional Local-Coop.
+      </p>
+      <div class="row" style="margin-top:10px">
+        <button class="btn ok" id="btnHost">Host</button>
+        <div style="flex:1;min-width:260px">
+          <label>Join Code</label>
+          <input id="joinCode" type="text" maxlength="6" placeholder="ABC123" />
+        </div>
+        <button class="btn primary" id="btnJoin">Join</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <div class="pill" id="mpStatus">MP: not active</div>
+        <div class="pill" id="mpCode">Code: —</div>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn" id="backFromMp">Back</button>
+      </div>
     </div>
   </section>
 
@@ -194,7 +227,9 @@
     hp: document.getElementById('hp'),
     inv: document.getElementById('inv'),
     where: document.getElementById('where'),
-    diff: document.getElementById('diff')
+    diff: document.getElementById('diff'),
+    slots: document.getElementById('slotsHud'),
+    mp: document.getElementById('mpHud')
   };
   const UI = {
     menu: document.getElementById('menu'),
@@ -204,7 +239,8 @@
     cutscene: document.getElementById('cutscene'),
     toast: document.getElementById('toast'),
     egg: document.getElementById('egg'),
-    chat: document.getElementById('chat')
+    chat: document.getElementById('chat'),
+    mp: document.getElementById('multiplayer'),
   };
   const BTN = {
     new: document.getElementById('btnNew'),
@@ -216,12 +252,19 @@
     login: document.getElementById('btnLogin'),
     resume: document.getElementById('btnResume'),
     save: document.getElementById('btnSave'),
-    mainMenu: document.getElementById('btnMainMenu')
+    mainMenu: document.getElementById('btnMainMenu'),
+    mpOpen: document.getElementById('btnMultiplayer'),
+    mpBack: document.getElementById('backFromMp'),
+    mpHost: document.getElementById('btnHost'),
+    mpJoin: document.getElementById('btnJoin'),
   };
   const ddDifficulty = document.getElementById('difficulty');
   const ddLang = document.getElementById('lang');
   const inputNick = document.getElementById('username');
   const chatInput = document.getElementById('chatInput');
+  const joinCodeInput = document.getElementById('joinCode');
+  const mpStatus = document.getElementById('mpStatus');
+  const mpCodeEl = document.getElementById('mpCode');
 
   const TILE = 16;
   const W = canvas.width, H = canvas.height;
@@ -231,10 +274,15 @@
   const now=()=>performance.now();
   const toast=(msg,ms=1800)=>{ UI.toast.textContent=msg; UI.toast.classList.add('show'); setTimeout(()=>UI.toast.classList.remove('show'),ms); };
   const show=(el,on)=>{ el.style.display = on ? (el.classList.contains('menu') ? 'flex' : 'block') : 'none'; };
+  const randCode=()=> Array.from({length:6},()=> "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random()*32)]).join('');
 
   // persistence
-  const STORE_KEY = 'echo-ember-saves-v4';
-  const defaultSaves = () => ({ slots:[null,null,null], settings:{difficulty:'ok', lang:'de', nick:''} });
+  const STORE_KEY = 'echo-ember-saves-v5';
+  const defaultSaves = () => ({
+    slots:[null,null,null],
+    settings:{difficulty:'ok', lang:'de', nick:''},
+    mp:{ enabled:false, mode:'', code:'' }
+  });
   function loadAll(){ try{ return JSON.parse(localStorage.getItem(STORE_KEY))||defaultSaves(); }catch(e){ return defaultSaves(); } }
   function saveAll(data){ localStorage.setItem(STORE_KEY, JSON.stringify(data)); }
 
@@ -243,7 +291,7 @@
   ddLang.value = all.settings?.lang || 'de';
   inputNick.value = all.settings?.nick || '';
 
-  // i18n (small + practical)
+  // i18n
   const I18N = {
     de:{
       note:"3 Save-Slots. Hard = keine Saves + Permadeath.",
@@ -266,15 +314,13 @@
       need:"Du brauchst: ",
       locked:"Verschlossen. Schlüssel fehlt: ",
       portal:"Portal → ",
-      pressE:"Drücke E",
-      chest:"Drücke E um Truhe zu öffnen",
-      talk:"Drücke E um zu reden",
-      blocked:"Geblockt!",
-      blockedReduced:"Geblockt (weniger Schaden)!",
-      respawn:"Respawn!",
-      permadeath:"HARD: Permadeath. Slot als DEAD markiert.",
       win:"Sieg!",
       secret:"Geheimes Level…",
+      introHint:"SPACE/E = weiter, ESC = skip",
+      potionUsed:"Potion benutzt!",
+      noPotion:"Keine Potion!",
+      slotSel:"Slot gewählt: ",
+      mpOn:"Multiplayer an (Prototype)",
     },
     en:{
       note:"3 save slots. Hard = no saves + permadeath.",
@@ -297,15 +343,13 @@
       need:"You need: ",
       locked:"Locked. Missing key: ",
       portal:"Portal → ",
-      pressE:"Press E",
-      chest:"Press E to open chest",
-      talk:"Press E to talk",
-      blocked:"Blocked!",
-      blockedReduced:"Blocked (reduced)!",
-      respawn:"Respawned!",
-      permadeath:"HARD: Permadeath. Slot marked DEAD.",
       win:"Victory!",
       secret:"Secret level…",
+      introHint:"SPACE/E = next, ESC = skip",
+      potionUsed:"Potion used!",
+      noPotion:"No potion!",
+      slotSel:"Selected slot: ",
+      mpOn:"Multiplayer on (prototype)",
     },
     fr:{
       note:"3 emplacements. Difficile = pas de sauvegarde + mort définitive.",
@@ -328,15 +372,13 @@
       need:"Il te faut : ",
       locked:"Fermé. Clé manquante : ",
       portal:"Portail → ",
-      pressE:"Appuie sur E",
-      chest:"Appuie sur E pour ouvrir",
-      talk:"Appuie sur E pour parler",
-      blocked:"Bloqué !",
-      blockedReduced:"Bloqué (réduit) !",
-      respawn:"Réapparition !",
-      permadeath:"DIFFICILE : mort définitive. Slot marqué MORT.",
       win:"Victoire !",
       secret:"Niveau secret…",
+      introHint:"SPACE/E = suivant, ESC = skip",
+      potionUsed:"Potion utilisée !",
+      noPotion:"Pas de potion !",
+      slotSel:"Slot choisi : ",
+      mpOn:"Multijoueur activé (prototype)",
     }
   };
   const L = ()=> I18N[getLang()] || I18N.de;
@@ -365,6 +407,7 @@
   // input
   const keys=new Map();
   let chatOpen=false;
+
   function setKey(e,down){
     const k=e.key;
     keys.set(k.toLowerCase(),down);
@@ -387,6 +430,19 @@
       closeChat();
       e.preventDefault();
     }
+
+    // select hotbar slots 1-5
+    if(inGame && down && !chatOpen){
+      if(['1','2','3','4','5'].includes(k)){
+        selectSlot(parseInt(k,10)-1);
+        e.preventDefault();
+      }
+      // quick potion
+      if((k==='q'||k==='Q') && down){
+        quickPotion();
+        e.preventDefault();
+      }
+    }
   }
   window.addEventListener('keydown',e=>setKey(e,true));
   window.addEventListener('keyup',e=>setKey(e,false));
@@ -403,12 +459,30 @@
   // 8 gate marker
   // 10 ice
   // 11 dark floor
-  const COLORS = {0:'#1c8c2d',1:'#3e4356',2:'#254070',4:'#865528',5:'#a7cc77',6:'#d7d7d7',7:'#6b76c8',8:'#9b0e0e',10:'#7aa6ff',11:'#0a0a10'};
-  function makeMap(name, tiles, encounters){ return {name, w:20, h:12, tiles, encounters:encounters||[], npcs:[], chests:[], doors:[], bossDef:null}; }
+  // 12 sand
+  const COLORS = {0:'#1c8c2d',1:'#3e4356',2:'#254070',4:'#865528',5:'#a7cc77',6:'#d7d7d7',7:'#6b76c8',8:'#9b0e0e',10:'#7aa6ff',11:'#0a0a10',12:'#b88b3d'};
+  function makeMap(name, tiles, encounters){ return {name, w:20, h:12, tiles, encounters:encounters||[], npcs:[], chests:[], doors:[], bossDef:null, spawn:{x:2*TILE,y:2*TILE} }; }
   const isBlocked=id=> id===1 || id===2;
   const tileAt=(map,px,py)=>{ const tx=clamp(Math.floor(px/TILE),0,map.w-1), ty=clamp(Math.floor(py/TILE),0,map.h-1); return { id: map.tiles[ty*map.w+tx], x:tx, y:ty }; };
 
-  // === maps (overworld + 3 worlds + shadow + boss + secret) ===
+  // NEW: Castle / Intro Map
+  const MAP_CASTLE = makeMap('Royal Castle',[
+    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+    1,0,0,0,0,0,0,0,0,6,6,0,0,0,0,0,0,0,0,1,
+    1,0,1,1,1,0,1,1,1,0,0,1,1,1,0,1,1,1,0,1,
+    1,0,1,0,1,0,1,0,1,0,0,1,0,1,0,1,0,1,0,1,
+    1,0,1,0,1,0,1,0,1,0,0,1,0,1,0,1,0,1,0,1,
+    1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+    1,0,1,0,1,0,1,0,1,1,1,0,1,0,1,0,1,0,0,1,
+    1,0,1,0,1,0,1,0,0,0,0,0,1,0,1,0,1,0,0,1,
+    1,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,1,
+    1,0,0,0,1,1,1,0,1,0,1,0,1,1,1,0,0,0,0,1,
+    1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,7,1,
+    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+  ]);
+  MAP_CASTLE.spawn = {x:2*TILE,y:9*TILE};
+
+  // Existing overworld, cave, forest, frost, shadow, boss, secret
   const MAP_OVERWORLD = makeMap('Overworld',[
     1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
     1,0,0,0,0,0,0,0,0,6,0,0,0,0,0,0,0,0,4,1,
@@ -514,9 +588,27 @@
     1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
   ]);
 
+  // NEW: extra endgame-ish map (Wastes) so you can expand further
+  const MAP_WASTES = makeMap('Ash Wastes',[
+    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+    1,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,7,1,
+    1,12,1,1,1,12,1,1,1,12,1,1,1,12,1,1,1,12,12,1,
+    1,12,1,0,1,12,1,0,1,12,1,0,1,12,1,0,1,12,12,1,
+    1,12,1,0,1,12,1,0,1,12,1,0,1,12,1,0,1,12,12,1,
+    1,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,1,
+    1,12,1,0,1,12,1,0,1,12,1,0,1,12,1,0,1,12,12,1,
+    1,12,1,0,1,12,1,0,1,12,1,0,1,12,1,0,1,12,12,1,
+    1,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,1,
+    1,12,12,12,1,1,1,12,1,12,1,12,1,1,1,12,12,12,12,1,
+    1,7,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,7,1,
+    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+  ]);
+
   function addDoor(a,x,y,b,tx,ty,opts={}){ a.doors.push({x,y,to:b,tx,ty, ...opts}); }
 
-  // Portal logic: YOU MUST STAND ON TILE and press E to use
+  // Door logic: AUTO on step (no E)
+  addDoor(MAP_CASTLE,18,10,MAP_OVERWORLD,2,2,{label:'Overworld'});
+
   addDoor(MAP_OVERWORLD,2,4,MAP_CAVE,2,10,{label:'Caves'});
   addDoor(MAP_CAVE,18,1,MAP_OVERWORLD,18,9,{label:'Overworld'});
 
@@ -532,7 +624,11 @@
   addDoor(MAP_SHADOW,18,10,MAP_BOSS,2,9,{label:'Boss', requireItems:['bow','shield']});
   addDoor(MAP_BOSS,1,9,MAP_SHADOW,17,2,{label:'Shadow'});
 
-  // Secret: only via code, but portal (tile 7) in center triggers secret cutscene
+  // NEW progression extension (after final door area you can add more content)
+  addDoor(MAP_BOSS,18,1,MAP_WASTES,2,10,{label:'Wastes', requireItems:['bow','shield']});
+  addDoor(MAP_WASTES,1,10,MAP_BOSS,17,2,{label:'Boss Lair'});
+
+  // Secret
   addDoor(MAP_SECRET,10,5,MAP_SECRET,10,5,{label:'Secret Portal', secretPortal:true});
 
   // CONTENT: chests & NPCs & encounters
@@ -544,10 +640,9 @@
   MAP_CAVE.chests.push({x:11,y:3,item:'sword',opened:false});
   MAP_CAVE.chests.push({x:16,y:9,item:'bow',opened:false});
   MAP_CAVE.chests.push({x:3,y:3,item:'potion',opened:false});
-  MAP_CAVE.npcs.push({x:7,y:3,text:"With the bow, sword enemies will appear."});
+  MAP_CAVE.npcs.push({x:7,y:3,text:"Hotbar: 1-5 select. Space uses selected."});
 
-  // BOSSES live on worlds: Forest boss + Frost boss + Final boss map
-  MAP_FOREST.encounters=[{x:6,y:5,type:'slime'},{x:14,y:7,type:'slime'},{x:10,y:5,type:'bandit'}]; // bandit only after bow
+  MAP_FOREST.encounters=[{x:6,y:5,type:'slime'},{x:14,y:7,type:'slime'},{x:10,y:5,type:'bandit'}];
   MAP_FOREST.chests.push({x:7,y:3,item:'potion',opened:false});
   MAP_FOREST.npcs.push({x:7,y:10,text:"A corrupted guardian hides deeper in these ruins…"});
   MAP_FOREST.bossDef = { id:'boss1', name:'Root Warden', x: 13*TILE, y: 6*TILE };
@@ -558,9 +653,13 @@
   MAP_FROST.bossDef = { id:'boss2', name:'Ice Sentinel', x: 13*TILE, y: 6*TILE };
 
   MAP_SHADOW.encounters=[{x:10,y:5,type:'bandit'},{x:14,y:7,type:'emberling'}];
-  MAP_SHADOW.npcs.push({x:7,y:3,text:"Final door: bow + shield. ENTER blocks. SPACE shoots."});
+  MAP_SHADOW.npcs.push({x:7,y:3,text:"Final door: bow + shield. ENTER blocks. SPACE uses selected slot."});
 
   MAP_BOSS.bossDef = { id:'boss3', name:'Ash Tyrant', x: 12*TILE, y: 5*TILE };
+
+  MAP_WASTES.encounters=[{x:10,y:5,type:'emberling'},{x:14,y:7,type:'emberling'}];
+  MAP_WASTES.chests.push({x:15,y:3,item:'potion',opened:false});
+  MAP_WASTES.npcs.push({x:6,y:9,text:"More lands ahead… build more maps here."});
 
   // ================= PLAYER / STATE =================
   function makePlayer(){
@@ -568,8 +667,16 @@
       x:2*TILE,y:2*TILE,w:12,h:12,
       dir:1,
       hp:10,hpMax:10,
+
+      // "logical" inventory (keys, etc.)
       inv:[],
-      map:MAP_OVERWORLD,
+
+      // NEW: 5-slot hotbar (items you can select/use)
+      hotbar:[null,null,null,null,null],
+      selectedSlot:0,
+      potions:0, // stack count
+
+      map:MAP_CASTLE,
       slot:0,
       name:'',
       hasWon:false,
@@ -577,11 +684,25 @@
       blocking:false,
       blockTimer:0,
       lastArrow:0,
-      checkpoint:{ mapName:'Overworld', x:2*TILE, y:2*TILE },
+      checkpoint:{ mapName:'Royal Castle', x:2*TILE, y:9*TILE },
       speech:{ text:'', timer:0 }
     };
   }
   let player = makePlayer();
+
+  // optional local coop second player (enabled when MP is enabled)
+  function makePlayer2(){
+    return {
+      x:3*TILE,y:9*TILE,w:12,h:12,
+      dir:1,
+      hp:10,hpMax:10,
+      hotbar:[null,null,null,null,null],
+      selectedSlot:0,
+      potions:0,
+      alive:true,
+    };
+  }
+  let p2 = makePlayer2();
 
   const DIFF = {
     easy:{ enemyHp:3, enemyDmg:1, bossHp1:18, bossHp2:22, bossHp3:34, bossDmg:2, fire:2, respawn:true },
@@ -591,21 +712,71 @@
   const D = ()=> DIFF[getDiff()] || DIFF.ok;
 
   const has=item=> player.inv.includes(item);
+
+  function autoEquip(item){
+    // first free slot
+    const i = player.hotbar.findIndex(s=>s===null);
+    if(i>=0){ player.hotbar[i]=item; }
+  }
+
+  function ensureInHotbar(item, preferredIndex){
+    // if already in hotbar, skip
+    if(player.hotbar.includes(item)) return;
+    if(typeof preferredIndex==='number' && preferredIndex>=0 && preferredIndex<player.hotbar.length){
+      if(player.hotbar[preferredIndex]===null){
+        player.hotbar[preferredIndex]=item;
+        return;
+      }
+    }
+    autoEquip(item);
+  }
+
   function grant(item){
+    if(item==='potion'){
+      player.potions++;
+      ensureInHotbar('potion', 2); // slot 3 preferred
+      toast(`+ potion (${player.potions})`);
+      return;
+    }
     if(!has(item)){
       player.inv.push(item);
       toast(`+ ${item}`);
+      // auto equip weapons
+      if(item==='sword') ensureInHotbar('sword', 0);
+      if(item==='bow') ensureInHotbar('bow', 1);
+      // shield is passive (block), but you can still show it in hotbar if you want:
+      if(item==='shield') { /* optional: ensureInHotbar('shield', 3); */ }
+
       if(item==='bow' || item==='shield') setCheckpoint();
     }
   }
+
   function setCheckpoint(){
     player.checkpoint = { mapName: player.map.name, x: player.x, y: player.y };
+  }
+
+  function selectSlot(i){
+    player.selectedSlot = clamp(i,0,4);
+    toast(L().slotSel + (player.selectedSlot+1));
+  }
+
+  function quickPotion(){
+    if(player.potions<=0){ toast(L().noPotion); return; }
+    player.potions--;
+    player.hp = Math.min(player.hpMax, player.hp+5);
+    toast(L().potionUsed);
+    if(player.potions<=0){
+      // remove potion from hotbar if no stack left
+      for(let i=0;i<player.hotbar.length;i++){
+        if(player.hotbar[i]==='potion') player.hotbar[i]=null;
+      }
+    }
   }
 
   // ================= ENTITIES =================
   const overlap=(a,b)=> !(a.x+a.w<b.x || b.x+b.w<a.x || a.y+a.h<b.y || b.y+b.h<a.y);
   function moveEntity(e,dx,dy){
-    const map=e.map||player.map;
+    const map=player.map;
     const nx=e.x+dx, ny=e.y+dy;
     const corners=[ tileAt(map,nx,ny), tileAt(map,nx+e.w,ny), tileAt(map,nx,ny+e.h), tileAt(map,nx+e.w,ny+e.h) ];
     if(corners.some(c=>isBlocked(c.id))) return;
@@ -622,38 +793,35 @@
   }
   function spawnForMap(map){
     return map.encounters
-      .filter(en => en.type!=='bandit' || has('bow')) // bandits only after bow
+      .filter(en => en.type!=='bandit' || has('bow'))
       .map(en=> makeEnemy(en.type, en.x*TILE+2, en.y*TILE+2));
   }
-  let enemies = spawnForMap(MAP_OVERWORLD);
+  let enemies = spawnForMap(player.map);
 
   // projectiles
   const arrows=[];
   const fireballs=[];
 
-  function shootArrow(){
+  function shootArrow(who){
+    // who: player (default) or p2
+    const src = who || player;
     if(!has('bow')) return;
     const t=now();
     if(t-player.lastArrow<280) return;
     player.lastArrow=t;
     const speed=140;
     arrows.push({
-      x: player.x + (player.dir===1 ? player.w+1 : -3),
-      y: player.y + 5,
+      x: src.x + (src.dir===1 ? src.w+1 : -3),
+      y: src.y + 5,
       w:3,h:2,
-      vx: (player.dir===1? speed : -speed),
+      vx: (src.dir===1? speed : -speed),
       vy:0,
       life: 1200
     });
   }
 
-  // Boss system: 3 bosses, final has 2 phases (phase2 spawns all 3 together)
-  let bosses = {
-    boss1: null,
-    boss2: null,
-    boss3: null,   // final
-    finalPhase: 1  // 1 or 2
-  };
+  // Boss system
+  let bosses = { boss1: null, boss2: null, boss3: null, finalPhase: 1 };
   const bossAlive = (b)=> b && b.alive;
 
   function spawnBoss(id, map){
@@ -676,14 +844,8 @@
 
   function ensureBossForMap(map){
     if(!map.bossDef) return;
-
     const id = map.bossDef.id;
-    if(!bosses[id]){
-      bosses[id] = spawnBoss(id, map);
-    } else {
-      // keep boss inside map; do not respawn dead bosses
-      // but if player enters again, keep position stable
-    }
+    if(!bosses[id]) bosses[id] = spawnBoss(id, map);
   }
 
   function bossFire(b){
@@ -704,26 +866,23 @@
     const t=now();
     const s = (b.id==='boss3' ? 30 : 34) * dt;
 
-    // basic chase
     moveEntity(b, Math.sign(player.x-b.x)*s, Math.sign(player.y-b.y)*s);
 
-    // contact dmg
     if(overlap(b,player) && (t-b.lastHit)>520){
       b.lastHit=t;
       damagePlayer(b.dmg, 'hit');
     }
 
-    // patterns
-    if(b.id==='boss1'){ // root warden: occasional dash
+    if(b.id==='boss1'){
       if(t-b.lastDash>1400){
         b.lastDash=t;
         moveEntity(b, Math.sign(player.x-b.x)*18, Math.sign(player.y-b.y)*18);
       }
     }
-    if(b.id==='boss2'){ // ice sentinel: more frequent fireballs
+    if(b.id==='boss2'){
       if(t-b.lastFire>900) bossFire(b);
     }
-    if(b.id==='boss3'){ // ash tyrant: fire spam
+    if(b.id==='boss3'){
       bossFire(b);
       if(bosses.finalPhase===2 && t-b.lastDash>1200){
         b.lastDash=t;
@@ -741,18 +900,19 @@
         const id=map.tiles[y*map.w+x];
         let c=COLORS[id]||'#222';
 
-        // area tints (simple)
         if(id===0 && map===MAP_OVERWORLD) c = (((x+y)&1)? '#187528':'#1f9a34');
         if(id===0 && map===MAP_CAVE) c = (((x+y)&1)? '#1b2030':'#1f2538');
         if(id===0 && map===MAP_FOREST) c = (((x+y)&1)? '#245a2d':'#2d7336');
         if(id===0 && map===MAP_FROST) c = (((x+y)&1)? '#1b2a3f':'#203252');
+        if(id===0 && map===MAP_CASTLE) c = (((x+y)&1)? '#1e2438':'#232b44');
+        if(id===0 && map===MAP_WASTES) c = (((x+y)&1)? '#6b4a1d':'#7a5521');
         if(id===0 && (map===MAP_SHADOW||map===MAP_BOSS||map===MAP_SECRET)) c = (((x+y)&1)? '#07070c':'#0c0c14');
         if(id===10) c = (((x+y)&1)? '#6f9cff':'#86b0ff');
         if(id===11) c = (((x+y)&1)? '#06060a':'#0a0a10');
+        if(id===12) c = (((x+y)&1)? '#b88b3d':'#c49a4a');
 
         rect(x*TILE,y*TILE,TILE,TILE,c);
 
-        // decor markers
         if(id===5){ rect(x*TILE+4,y*TILE+4,8,8,'#c93'); rect(x*TILE+4,y*TILE+6,8,4,'#642'); }
         if(id===6){ rect(x*TILE+2,y*TILE+6,12,4,'#bbb'); }
         if(id===4){ rect(x*TILE+4,y*TILE+4,8,8,'#543'); }
@@ -762,32 +922,34 @@
     }
   }
 
+  function drawPlayerBase(p, color){
+    rect(p.x-1,p.y-1,p.w+2,p.h+2,'#000');
+    rect(p.x,p.y,p.w,p.h, color);
+
+    if(p.dir===-1) rect(p.x+2,p.y+4,3,3,'#111'); else rect(p.x+7,p.y+4,3,3,'#111');
+  }
+
   function drawPlayer(){
-    rect(player.x-1,player.y-1,player.w+2,player.h+2,'#000');
-    rect(player.x,player.y,player.w,player.h, player.blocking ? '#cfe6ff':'#eaeaea');
+    drawPlayerBase(player, player.blocking ? '#cfe6ff':'#eaeaea');
 
-    // face
-    if(player.dir===-1) rect(player.x+2,player.y+4,3,3,'#111'); else rect(player.x+7,player.y+4,3,3,'#111');
-
-    // sword
-    if(has('sword')){
+    // weapon visuals based on selected slot
+    const sel = player.hotbar[player.selectedSlot];
+    if(sel==='sword'){
       if(player.dir===1) rect(player.x+player.w, player.y+3, 6,2, '#ddd');
       else rect(player.x-6, player.y+3, 6,2, '#ddd');
     }
-    // bow
-    if(has('bow')){
+    if(sel==='bow'){
       const bx = (player.dir===1? player.x+player.w-1 : player.x-2);
       rect(bx, player.y+2, 2, 9, '#b5853a');
       rect(bx+(player.dir===1? 1:-1), player.y+2, 1, 9, '#e8f0ff');
     }
-    // shield
     if(has('shield') && player.blocking){
       const sx = (player.dir===1? player.x+player.w : player.x-5);
       rect(sx, player.y+3, 5, 7, '#6b76c8');
       rect(sx+1, player.y+4, 3, 5, '#0b0e14');
     }
 
-    // speech bubble (simple)
+    // speech bubble
     if(player.speech.timer>0 && player.speech.text){
       const text = player.speech.text.slice(0,40);
       const bw = Math.min(180, 10 + text.length*6);
@@ -799,6 +961,11 @@
       ctx.font = '10px ui-monospace, monospace';
       ctx.fillText(text, bx+6, by+10);
     }
+  }
+
+  function drawPlayer2(){
+    if(!mp.enabled) return;
+    drawPlayerBase(p2, '#d6c08a');
   }
 
   function drawEnemies(){
@@ -821,8 +988,6 @@
 
   function drawBoss(b){
     if(!b || !b.alive) return;
-
-    // big-ish outline
     rect(b.x-2,b.y-2,b.w+4,b.h+4,'#000');
 
     let body='#3a0b0f', inner='#6a1119', eye='#ffd27a';
@@ -835,28 +1000,20 @@
     rect(b.x+5,b.y+6,4,3,eye);
     rect(b.x+b.w-9,b.y+6,4,3,eye);
 
-    // hp bar
     const bw = b.w;
     const hpw = Math.max(0, Math.floor((b.hp/b.hpMax)*bw));
     rect(b.x, b.y-6, bw, 3, '#0b0e14');
     rect(b.x, b.y-6, hpw, 3, '#00f6c7');
-
-    if(b.id==='boss3'){
-      // mouth hint
-      rect(b.x+b.w/2-5,b.y+b.h-6,10,3,'#0b0e14');
-      rect(b.x+b.w/2-4,b.y+b.h-5,8,1,'#ff6a3a');
-    }
   }
 
-  // ================= COMBAT =================
+  // ================= COMBAT / USE =================
   function damagePlayer(n, source='hit'){
     if(player.iFrames>0) return;
 
-    // block
     if(player.blocking && has('shield')){
       n *= (source==='fire') ? 0.15 : 0.35;
-      if(n < 0.2){ toast(L().blocked); return; }
-      toast(L().blockedReduced);
+      if(n < 0.2){ toast('Blocked!'); return; }
+      toast('Blocked (reduced)!');
     }
 
     player.hp -= n;
@@ -864,13 +1021,13 @@
     if(player.hp<=0){ player.hp=0; onDeath(); }
   }
 
-  function meleeHitbox(){
-    return { x: player.x + (player.dir===1? player.w:-8), y: player.y+2, w:8, h:8 };
+  function meleeHitbox(p){
+    const who = p || player;
+    return { x: who.x + (who.dir===1? who.w:-8), y: who.y+2, w:8, h:8 };
   }
 
   function attackEntityMelee(target){
-    if(!has('sword')) return;
-    const range=meleeHitbox();
+    const range=meleeHitbox(player);
     if(overlap(range,target)){
       target.hp--;
       if(target.hp<=0) target.alive=false;
@@ -880,7 +1037,6 @@
 
   function handleArrowHits(){
     for(const a of arrows){
-      // enemies
       enemies.forEach(e=>{
         if(e.alive && overlap(a,e)){
           e.hp -= 1;
@@ -889,8 +1045,6 @@
         }
       });
 
-      // bosses:
-      // rule: boss3 (final) must be hurt by bow (arrow). boss1 & boss2 can be hurt by sword OR arrow.
       const bs = [bosses.boss1, bosses.boss2, bosses.boss3];
       for(const b of bs){
         if(b && b.alive && overlap(a,b)){
@@ -901,8 +1055,41 @@
     }
   }
 
+  function useSelected(){
+    const sel = player.hotbar[player.selectedSlot];
+    if(!sel) return;
+
+    // potion use as selected
+    if(sel==='potion'){
+      quickPotion();
+      return;
+    }
+
+    // sword melee
+    if(sel==='sword'){
+      enemies.forEach(e=> e.alive && attackEntityMelee(e));
+      if(player.map.bossDef){
+        const id = player.map.bossDef.id;
+        const b = bosses[id];
+        if(b && b.alive && id!=='boss3') attackEntityMelee(b);
+      }
+      if(player.map===MAP_BOSS && bosses.finalPhase===2){
+        if(bossAlive(bosses.boss1)) attackEntityMelee(bosses.boss1);
+        if(bossAlive(bosses.boss2)) attackEntityMelee(bosses.boss2);
+      }
+      return;
+    }
+
+    // bow shoot
+    if(sel==='bow'){
+      shootArrow(player);
+      return;
+    }
+  }
+
   // ================= GAME LOOP =================
   let last=0, dt=0, paused=false, inGame=false, transitioning=false;
+  let cutsceneActive=false;
 
   function togglePause(){
     if(chatOpen) return;
@@ -918,12 +1105,10 @@
     drawMap(player.map);
     drawEnemies();
 
-    // bosses in this map
     if(player.map.bossDef){
       const id = player.map.bossDef.id;
       drawBoss(bosses[id]);
     }
-    // phase 2 draws all bosses (only in boss lair)
     if(player.map===MAP_BOSS && bosses.finalPhase===2){
       drawBoss(bosses.boss1);
       drawBoss(bosses.boss2);
@@ -931,22 +1116,37 @@
     }
 
     drawProjectiles();
+    drawPlayer2();
     drawPlayer();
 
-    // HUD text
+    // HUD
     HUD.hp.textContent = `HP: ${Math.max(0,player.hp).toFixed(0)}/${player.hpMax}`;
-    HUD.inv.textContent = `Items: ${player.inv.join(', ')||'None'}`;
+    HUD.inv.textContent = `Inv: ${player.inv.join(', ')||'None'} · Potions: ${player.potions}`;
     let bossInfo = '';
     if(player.map===MAP_BOSS && bosses.boss3){
       bossInfo = ` · Final P${bosses.finalPhase}`;
     }
     HUD.where.textContent = `Area: ${player.map.name}${bossInfo}`;
     HUD.diff.textContent = `Diff: ${getDiff().toUpperCase()}`;
+
+    const slotLabel = player.hotbar.map((it,i)=>{
+      const s = it ? it : '—';
+      const mark = (i===player.selectedSlot) ? '*' : '';
+      return `${i+1}${mark}:${s}`;
+    }).join('  ');
+    HUD.slots.textContent = `Slots: ${slotLabel}`;
+
+    if(mp.enabled){
+      HUD.mp.style.display='block';
+      HUD.mp.textContent = `MP: ${mp.mode.toUpperCase()} · Code ${mp.code}`;
+    } else {
+      HUD.mp.style.display='none';
+    }
   }
 
   let sayTimer=0;
-  function say(text, ms=1400){
-    UI.cutscene.innerHTML = `<span class="name">✦</span> ${text}`;
+  function say(html, ms=1400){
+    UI.cutscene.innerHTML = html;
     show(UI.cutscene,true);
     clearTimeout(sayTimer);
     sayTimer=setTimeout(()=>show(UI.cutscene,false), ms);
@@ -955,7 +1155,7 @@
   function update(t){
     dt=(t-last)/1000; last=t;
 
-    if(!inGame || paused || chatOpen){
+    if(!inGame || paused || chatOpen || cutsceneActive){
       requestAnimationFrame(update);
       return;
     }
@@ -975,7 +1175,7 @@
       player.blockTimer=140;
     }
 
-    // movement
+    // movement p1
     const sp=75;
     let dx=0,dy=0;
     if(keys.get('a')||keys.get('arrowleft')){ dx-=sp*dt; player.dir=-1; }
@@ -985,6 +1185,18 @@
     if(dx!==0) moveEntity(player,dx,0);
     if(dy!==0) moveEntity(player,0,dy);
 
+    // movement p2 (local coop) - IJKL
+    if(mp.enabled){
+      let dx2=0,dy2=0;
+      const sp2=72;
+      if(keys.get('j')){ dx2-=sp2*dt; p2.dir=-1; }
+      if(keys.get('l')){ dx2+=sp2*dt; p2.dir= 1; }
+      if(keys.get('i')){ dy2-=sp2*dt; }
+      if(keys.get('k')){ dy2+=sp2*dt; }
+      if(dx2!==0) moveEntity(p2,dx2,0);
+      if(dy2!==0) moveEntity(p2,0,dy2);
+    }
+
     // frost chip damage
     const ct = tileAt(player.map, player.x+player.w/2, player.y+player.h/2);
     if(player.map===MAP_FROST && ct.id===10){
@@ -993,25 +1205,12 @@
       if(dy!==0) moveEntity(player, 0, dy*0.35);
     }
 
-    // attack
+    // use/attack (SPACE) -> uses selected item
     if(keys.get(' ')){
-      enemies.forEach(e=> e.alive && attackEntityMelee(e));
-      // bosses: sword works on boss1/boss2, NOT on boss3 final
-      if(player.map.bossDef){
-        const id = player.map.bossDef.id;
-        const b = bosses[id];
-        if(b && b.alive && id!=='boss3') attackEntityMelee(b);
-      }
-      // in phase2: sword can hit boss1+boss2 but not final
-      if(player.map===MAP_BOSS && bosses.finalPhase===2){
-        if(bossAlive(bosses.boss1)) attackEntityMelee(bosses.boss1);
-        if(bossAlive(bosses.boss2)) attackEntityMelee(bosses.boss2);
-      }
-      // bow shooting always
-      shootArrow();
+      useSelected();
     }
 
-    // enemies chase
+    // enemies chase (target player1)
     enemies.forEach(e=>{
       if(!e.alive) return;
       const s = (e.type==='bandit'? 44:38)*dt;
@@ -1023,7 +1222,7 @@
       }
     });
 
-    // bosses in map
+    // bosses
     ensureBossForMap(player.map);
 
     if(player.map.bossDef){
@@ -1032,24 +1231,18 @@
       if(b && b.alive){
         bossAI(b, dt);
       }
-      // boss death -> drops
       if(b && !b.alive && !b._dropped){
         b._dropped=true;
         if(id==='boss1'){ grant('key2'); toast('+ key2'); }
         if(id==='boss2'){ grant('key3'); toast('+ key3'); }
         if(id==='boss3'){
-          // final boss phase logic
           if(bosses.finalPhase===1){
-            // phase 2: revive/spawn all 3 together
             bosses.finalPhase=2;
             toast('FINAL: PHASE 2!');
-            // ensure boss1 & boss2 exist (spawn them into boss map positions)
             bosses.boss1 = bosses.boss1 && bosses.boss1.alive ? bosses.boss1 : { ...spawnBoss('boss1', MAP_FOREST), x: 7*TILE, y: 4*TILE };
             bosses.boss2 = bosses.boss2 && bosses.boss2.alive ? bosses.boss2 : { ...spawnBoss('boss2', MAP_FROST), x: 7*TILE, y: 8*TILE };
-            // respawn final with lower hp
             bosses.boss3 = { ...spawnBoss('boss3', MAP_BOSS), hp: Math.floor(D().bossHp3*0.75), hpMax: Math.floor(D().bossHp3*0.75) };
           } else {
-            // phase2 won
             player.hasWon=true;
             ending();
           }
@@ -1057,10 +1250,8 @@
       }
     }
 
-    // phase2 boss lair: run AI for all 3
     if(player.map===MAP_BOSS && bosses.finalPhase===2){
       [bosses.boss1,bosses.boss2,bosses.boss3].forEach(b=> b && b.alive && bossAI(b, dt));
-      // check win: all dead
       if((!bossAlive(bosses.boss1)) && (!bossAlive(bosses.boss2)) && (!bossAlive(bosses.boss3))){
         player.hasWon=true;
         ending();
@@ -1084,68 +1275,58 @@
     });
 
     handleArrowHits();
-
     for(let i=arrows.length-1;i>=0;i--) if(arrows[i].life<=0) arrows.splice(i,1);
     for(let i=fireballs.length-1;i>=0;i--) if(fireballs[i].life<=0) fireballs.splice(i,1);
 
-    handleTiles();
+    handleTilesAuto();
     render();
     requestAnimationFrame(update);
   }
 
   // ================= TILE INTERACTIONS =================
-  function handleTiles(){
+  // NEW: portals auto-trigger on step (no E)
+  function handleTilesAuto(){
     const center={x:player.x+player.w/2, y:player.y+player.h/2};
     const t=tileAt(player.map, center.x, center.y);
 
-    // chests (E)
+    // chests auto-open on touch
     (player.map.chests||[]).forEach(ch=>{
       if(ch.opened) return;
       const box={x:ch.x*TILE+2,y:ch.y*TILE+2,w:12,h:12};
       if(overlap({x:center.x-1,y:center.y-1,w:2,h:2}, box)){
-        if(keys.get('e')){
-          ch.opened=true;
-          if(ch.item==='potion'){
-            player.hp = Math.min(player.hpMax, player.hp+5);
-            toast('Healed!');
-          } else {
-            grant(ch.item);
-          }
-        } else say(L().chest, 900);
+        ch.opened=true;
+        if(ch.item==='potion'){
+          grant('potion');
+        } else {
+          grant(ch.item);
+        }
       }
     });
 
-    // npcs (E)
+    // npcs: talk when touching
     (player.map.npcs||[]).forEach(n=>{
       const box={x:n.x*TILE+1,y:n.y*TILE+1,w:14,h:14};
       if(overlap({x:center.x-1,y:center.y-1,w:2,h:2}, box)){
-        if(keys.get('e')) say(n.text, 1600);
-        else say(L().talk, 900);
+        say(`<span class="name">NPC</span>: ${n.text}`, 1100);
       }
     });
 
-    // portals require E (this fixes your “key but no world” issue)
+    // portals auto step
     (player.map.doors||[]).forEach(d=>{
       if(t.x===d.x && t.y===d.y){
-        // show hint always
-        if(!keys.get('e')){
-          say(`${L().pressE} · ${L().portal}${d.label}`, 700);
-          return;
-        }
+        if(transitioning) return;
 
-        // secret portal: cutscene
         if(d.secretPortal){
           secretCutscene();
           return;
         }
 
-        // requirements
         if(d.requireKey && !has(d.requireKey)){
-          say(L().locked + d.requireKey, 1100);
+          say(L().locked + d.requireKey, 900);
           return;
         }
         if(d.requireItems && d.requireItems.some(it=>!has(it))){
-          say(L().need + d.requireItems.join(' + '), 1200);
+          say(L().need + d.requireItems.join(' + '), 900);
           return;
         }
 
@@ -1179,7 +1360,6 @@
       arrows.length=0; fireballs.length=0;
       transitioning=false;
 
-      // entering final boss map resets phase if not started
       if(map===MAP_BOSS && bosses.finalPhase===1 && !bosses.boss3){
         bosses.boss3 = spawnBoss('boss3', MAP_BOSS);
       }
@@ -1206,6 +1386,8 @@
       map: player.map?.name || 'Overworld',
       hp: 0, hpMax: player.hpMax,
       inv: player.inv || [],
+      hotbar: player.hotbar || [],
+      potions: player.potions || 0,
       hasWon:false,
       x: player.x, y: player.y
     };
@@ -1217,26 +1399,25 @@
     paused=true;
     UI.pause.classList.add('active');
     if(hard){
-      say(L().perm**adeath, 1800); // fix fallback if typo
-      say(L().perm**adeath, 1800);
-      // actually use correct key
-      say(L().permadeath, 1800);
+      say(`<b>${L().permadeath || 'Permadeath!'}</b>`, 1300);
       markSlotDead();
       setTimeout(()=>returnToMenu(), 900);
       return;
     }
-    say("You died…", 1100);
+    say("You died…", 900);
     setTimeout(()=>respawn(), 650);
   }
 
   function respawn(){
-    const cp = player.checkpoint || {mapName:'Overworld', x:2*TILE, y:2*TILE};
+    const cp = player.checkpoint || {mapName:'Royal Castle', x:2*TILE, y:9*TILE};
     const mapByName=(n)=>{
+      if(n==='Royal Castle') return MAP_CASTLE;
       if(n==='Glimmer Caves') return MAP_CAVE;
       if(n==='Forest Ruins') return MAP_FOREST;
       if(n==='Frost Shrine') return MAP_FROST;
       if(n==='Shadow Nexus') return MAP_SHADOW;
       if(n==='Boss Lair') return MAP_BOSS;
+      if(n==='Ash Wastes') return MAP_WASTES;
       if(n==='???') return MAP_SECRET;
       return MAP_OVERWORLD;
     };
@@ -1248,7 +1429,7 @@
     arrows.length=0; fireballs.length=0;
     paused=false;
     UI.pause.classList.remove('active');
-    toast(L().respawn);
+    toast('Respawn!');
   }
 
   // ================= SECRET CUTSCENE =================
@@ -1264,10 +1445,55 @@
       - ROW-ROW-BOW (gives Bow)<br/>
       - WIN-WIN-WIN (instant win)<br/>
       - End-End (secret dimension)<br/><br/>
-      <span class="name">Contact</span>: max.musterman@fakemail.com<br/><br/>
-      <b>Message:</b> Thank you for playing. You are a true hero — not only for finishing the game, but for finishing it in secret.<br/><br/>
       Press <b>T</b> then Main Menu.`;
   }
+
+  // ================= INTRO STORY CUTSCENE =================
+  const introLines = [
+    {name:'King', text:'Hero… our kingdom is finally at peace.'},
+    {name:'Princess', text:'Thank you for protecting the Ember Flame.'},
+    {name:'???', text:'Peace? How adorable.'},
+    {name:'Endlos', text:'I am ENDLOS. I devour worlds.'},
+    {name:'King', text:'Guards—!'},
+    {name:'Endlos', text:'Too late.'},
+    {name:'Narrator', text:'The castle fractures. The flame dims. You survive… barely.'},
+    {name:'Princess', text:'Find the keys… rebuild the Ember… stop Endlos…'}
+  ];
+  let introIndex=0;
+
+  function startIntro(){
+    cutsceneActive=true;
+    introIndex=0;
+    show(UI.cutscene,true);
+    renderIntroLine();
+  }
+  function renderIntroLine(){
+    const line = introLines[introIndex];
+    UI.cutscene.innerHTML = `<span class="name">${line.name}</span>: ${line.text}<div class="small">${L().introHint}</div>`;
+  }
+  function endIntro(){
+    cutsceneActive=false;
+    show(UI.cutscene,false);
+    // after story: auto go from castle spawn -> portal exists at (18,10)
+    toast('Go to the portal…');
+  }
+
+  window.addEventListener('keydown', (e)=>{
+    if(!inGame) return;
+    if(!cutsceneActive) return;
+    if(e.key==='Escape'){
+      cutsceneActive=false;
+      show(UI.cutscene,false);
+      return;
+    }
+    if(e.key===' ' || e.key==='Enter' || e.key==='e' || e.key==='E'){
+      introIndex++;
+      if(introIndex>=introLines.length){
+        endIntro();
+      } else renderIntroLine();
+      e.preventDefault();
+    }
+  });
 
   // ================= MINI CHAT (R) =================
   function toggleChat(){
@@ -1303,11 +1529,8 @@
 
   function handleChatCommand(raw){
     const cmd = raw.toUpperCase();
-
-    // normal speech
     speak(raw);
 
-    // secret codes
     if(cmd==='BLOCK-BLOCK'){
       grant('shield');
       toast('CHEAT: shield');
@@ -1325,12 +1548,37 @@
     }
     if(cmd==='END-END'){
       toast(L().secret);
-      // send to secret map
       changeMap(MAP_SECRET, 10, 9);
-      // wipe enemies/bosses to keep it empty
       enemies=[];
       return;
     }
+  }
+
+  // ================= MULTIPLAYER (PROTOTYPE) =================
+  // This is a lobby + local coop toggle. Real online requires backend/signaling.
+  const mp = { enabled:false, mode:'', code:'' };
+
+  function mpSet(enabled, mode, code){
+    mp.enabled = enabled;
+    mp.mode = mode || '';
+    mp.code = code || '';
+    all = loadAll();
+    all.mp = { enabled: mp.enabled, mode: mp.mode, code: mp.code };
+    saveAll(all);
+
+    mpStatus.textContent = enabled ? `MP: ${mode} active` : 'MP: not active';
+    mpCodeEl.textContent = `Code: ${code || '—'}`;
+    toast(enabled ? L().mpOn : 'Multiplayer off');
+  }
+
+  function mpHost(){
+    const code = randCode();
+    mpSet(true, 'host', code);
+  }
+  function mpJoin(code){
+    code = (code||'').trim().toUpperCase();
+    if(code.length!==6){ toast('Invalid code'); return; }
+    mpSet(true, 'join', code);
   }
 
   // ================= MENUS / SAVE =================
@@ -1338,6 +1586,7 @@
     UI.menu.classList.toggle('active', which==='main');
     UI.load.classList.toggle('active', which==='load');
     UI.settings.classList.toggle('active', which==='settings');
+    UI.mp.classList.toggle('active', which==='mp');
   };
 
   function buildSlots(){
@@ -1399,12 +1648,30 @@
     all=loadAll();
     player.name = all.slots[slotIndex]?.name||'';
 
-    // reset bosses
     bosses = { boss1:null, boss2:null, boss3:null, finalPhase:1 };
+
+    // start in castle with intro
+    player.map = MAP_CASTLE;
+    player.x = MAP_CASTLE.spawn.x; player.y = MAP_CASTLE.spawn.y;
+    player.checkpoint = { mapName:'Royal Castle', x: player.x, y: player.y };
 
     inGame=true;
     HUD.root.style.display='flex';
     enemies=spawnForMap(player.map);
+
+    // reset MP from saved state
+    const mpSaved = loadAll().mp || {};
+    mp.enabled = !!mpSaved.enabled;
+    mp.mode = mpSaved.mode || '';
+    mp.code = mpSaved.code || '';
+
+    // place p2 near p1
+    p2 = makePlayer2();
+    p2.x = player.x + 12;
+    p2.y = player.y;
+
+    // intro story
+    startIntro();
   }
 
   function loadFromSlot(idx){
@@ -1420,26 +1687,39 @@
       x:s.x??player.x, y:s.y??player.y,
       hp:s.hp??player.hp, hpMax:s.hpMax??player.hpMax,
       inv:s.inv||[],
+      hotbar:s.hotbar||[null,null,null,null,null],
+      potions:s.potions||0,
       hasWon:!!s.hasWon,
       name:s.name||'',
       checkpoint: s.checkpoint || player.checkpoint
     });
 
     const mapByName=(n)=>{
+      if(n==='Royal Castle') return MAP_CASTLE;
       if(n==='Glimmer Caves') return MAP_CAVE;
       if(n==='Forest Ruins') return MAP_FOREST;
       if(n==='Frost Shrine') return MAP_FROST;
       if(n==='Shadow Nexus') return MAP_SHADOW;
       if(n==='Boss Lair') return MAP_BOSS;
+      if(n==='Ash Wastes') return MAP_WASTES;
       if(n==='???') return MAP_SECRET;
       return MAP_OVERWORLD;
     };
     player.map=mapByName(s.map);
 
-    // restore boss state if present
     bosses = s.bosses || { boss1:null, boss2:null, boss3:null, finalPhase:1 };
 
     enemies=spawnForMap(player.map);
+
+    // restore MP
+    const mpSaved = loadAll().mp || {};
+    mp.enabled = !!mpSaved.enabled;
+    mp.mode = mpSaved.mode || '';
+    mp.code = mpSaved.code || '';
+
+    p2 = makePlayer2();
+    p2.x = player.x + 12;
+    p2.y = player.y;
   }
 
   function saveToSlot(){
@@ -1454,6 +1734,8 @@
       x:player.x,y:player.y,
       hp:player.hp,hpMax:player.hpMax,
       inv:player.inv,
+      hotbar:player.hotbar,
+      potions:player.potions,
       map:player.map.name,
       hasWon:player.hasWon,
       name: existing.name||player.name||'',
@@ -1480,7 +1762,9 @@
   function returnToMenu(){
     inGame=false;
     paused=false;
+    cutsceneActive=false;
     UI.pause.classList.remove('active');
+    show(UI.cutscene,false);
     HUD.root.style.display='none';
     setMenu('main');
   }
@@ -1489,10 +1773,25 @@
   BTN.new.addEventListener('click', ()=>{ setMenu('load'); buildSlots(); toast(L().pickSlot); });
   BTN.load.addEventListener('click', ()=>{ setMenu('load'); buildSlots(); });
   BTN.settings.addEventListener('click', ()=> setMenu('settings'));
+  BTN.mpOpen.addEventListener('click', ()=> setMenu('mp'));
+  BTN.mpBack.addEventListener('click', ()=> setMenu('main'));
+
+  BTN.mpHost.addEventListener('click', ()=>{
+    mpHost();
+    mpStatus.textContent = 'MP: host active';
+    mpCodeEl.textContent = `Code: ${mp.code}`;
+  });
+  BTN.mpJoin.addEventListener('click', ()=>{
+    mpJoin(joinCodeInput.value);
+    mpStatus.textContent = 'MP: join active';
+    mpCodeEl.textContent = `Code: ${mp.code}`;
+  });
+
   BTN.exit.addEventListener('click', ()=>{
     window.close();
     setTimeout(()=>{ document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#ccd">Goodbye!</div>'; }, 100);
   });
+
   BTN.backFromLoad.addEventListener('click', ()=> setMenu('main'));
   BTN.backFromSettings.addEventListener('click', ()=> setMenu('main'));
 
@@ -1533,7 +1832,4 @@
 })();
 </script>
 </body>
-</
-
-
-**Blub**
+</html>
